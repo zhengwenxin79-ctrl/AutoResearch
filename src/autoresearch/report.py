@@ -56,6 +56,7 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
                 f"- Dataset: {card.dataset}",
                 f"- Metrics: {card.metrics}",
                 f"- Limitation: {card.limitation or 'not explicit'}",
+                f"- Coverage tags: {', '.join(card.coverage_tags) if card.coverage_tags else 'none'}",
                 "",
             ]
         )
@@ -83,6 +84,13 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
             [
                 f"### Gap {idx}: {gap.gap}",
                 f"- Confidence: {gap.confidence}",
+                (
+                    f"- Coverage: support={gap.support_count}/{gap.total_papers} "
+                    f"({gap.support_ratio}), counter={gap.counter_count}/{gap.total_papers} "
+                    f"({gap.counter_ratio}), unclear={gap.unclear_count}"
+                ),
+                f"- Full-text evidence snippets: {gap.full_text_evidence_count}",
+                f"- Score reasons: {'; '.join(gap.score_reasons) if gap.score_reasons else 'not available'}",
                 f"- Why it matters: {gap.why_it_matters}",
                 f"- Research opportunity: {gap.research_opportunity}",
                 "- Evidence:",
@@ -109,7 +117,7 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
         lines.append("- No major source execution warnings.")
     lines.extend(
         [
-            "- MVP extraction mostly uses title/abstract metadata. Full-text section parsing is a next step.",
+            "- MVP extraction uses rule-based evidence signals; full-text parsing improves coverage but is not a substitute for expert review.",
             "- Gap evidence is a research triage signal, not a final systematic-review conclusion.",
             "",
         ]

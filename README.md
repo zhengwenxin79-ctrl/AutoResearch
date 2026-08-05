@@ -43,8 +43,10 @@ outputs/<topic-slug>/
 - Optional PDF/HTML full-text fetching for top-ranked papers.
 - Section splitting for abstract, methods, experiments, results, limitations, and related sections.
 - Paper card extraction from title, abstract, metadata, and section-aware full text when available.
+- Paper Card v2 fields with per-field evidence snippets, extraction status, and coverage tags.
 - Lightweight field mapping by task, method, dataset, metric, and model type.
-- Evidence-grounded gap finding with source URLs, snippets, and section labels.
+- Evidence-grounded gap finding with source URLs, snippets, section labels, support/counter counts,
+  and confidence score reasons.
 - Markdown and JSON artifact export.
 
 ## Design Principle

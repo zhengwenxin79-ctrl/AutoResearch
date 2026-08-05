@@ -44,6 +44,29 @@ METRIC_PATTERNS = [
     r"IoU",
 ]
 
+TEMPORAL_PATTERNS = [
+    r"\btemporal\b",
+    r"\blongitudinal\b",
+    r"\bfollow[- ]?up\b",
+    r"\bchange\b",
+    r"\bprogression\b",
+]
+
+LESION_PATTERNS = [
+    r"\blesion\b",
+    r"\bfinding\b",
+    r"\blocali[sz]ation\b",
+    r"\bsegmentation\b",
+    r"\bmask\b",
+]
+
+BENCHMARK_PATTERNS = [
+    r"\bbenchmark\b",
+    r"\bdataset\b",
+    r"\bevaluation\b",
+    r"\bbaseline\b",
+]
+
 SECTION_PRIORITY = {
     "methods": 5,
     "method": 5,
@@ -86,6 +109,10 @@ def _snippet_for(title: str, url: str, text: str, claim: str, section: str = "")
     )
 
 
+def _has_any(text: str, patterns: list[str]) -> bool:
+    return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
+
+
 def _section_text(full_text: FullTextRecord | None) -> str:
     if not full_text or full_text.status != "ok":
         return ""
@@ -122,6 +149,68 @@ def _source_text(paper_abstract: str, full_text: FullTextRecord | None) -> tuple
     return paper_abstract, "abstract"
 
 
+def _evidence_for_field(
+    paper_title: str,
+    paper_url: str,
+    full_text: FullTextRecord | None,
+    abstract: str,
+    field: str,
+    patterns: list[str] | list[tuple[str, str]],
+) -> EvidenceSnippet | None:
+    section = _best_section(full_text, patterns)
+    if section:
+        return _snippet_for(
+            paper_title,
+            paper_url,
+            section.text,
+            f"{field} evidence from full text",
+            section=section.heading,
+        )
+    if abstract:
+        return _snippet_for(
+            paper_title,
+            paper_url,
+            abstract,
+            f"{field} evidence from abstract",
+            section="abstract",
+        )
+    return None
+
+
+def _status_for(value: str, inferred: bool = False) -> str:
+    if value == "not explicit" or not value:
+        return "not_explicit"
+    return "inferred" if inferred else "explicit"
+
+
+def _coverage_tags(
+    text: str,
+    datasets: list[str],
+    metrics: list[str],
+    limitation: str,
+    evidence_source: str,
+) -> list[str]:
+    tags: list[str] = []
+    if _has_any(text, TEMPORAL_PATTERNS):
+        tags.append("temporal_or_change")
+    if _has_any(text, LESION_PATTERNS):
+        tags.append("lesion_or_localization")
+    if _has_any(text, BENCHMARK_PATTERNS):
+        tags.append("benchmark_or_evaluation")
+    if datasets:
+        tags.append("dataset_explicit")
+    else:
+        tags.append("dataset_missing")
+    if metrics:
+        tags.append("metric_explicit")
+    else:
+        tags.append("metric_missing")
+    if "single-timepoint" in limitation or "static" in limitation:
+        tags.append("static_or_single_timepoint")
+    tags.append("full_text_read" if evidence_source == "full text" else "abstract_only")
+    return tags
+
+
 def build_paper_cards(
     ranked: list[RankedPaper],
     full_texts: dict[str, FullTextRecord] | None = None,
@@ -154,7 +243,7 @@ def build_paper_cards(
         )
         evidence_text = best_section.text if best_section else paper.abstract
         section = best_section.heading if best_section else "abstract"
-        evidence = [
+        primary_evidence = [
             _snippet_for(
                 paper.title,
                 paper.url,
@@ -163,6 +252,26 @@ def build_paper_cards(
                 section=section,
             )
         ] if evidence_text else []
+        field_evidence = {
+            "task": _evidence_for_field(paper.title, paper.url, full_text, paper.abstract, "task", TASK_PATTERNS),
+            "method": _evidence_for_field(
+                paper.title, paper.url, full_text, paper.abstract, "method", METHOD_PATTERNS
+            ),
+            "dataset": _evidence_for_field(
+                paper.title, paper.url, full_text, paper.abstract, "dataset", DATASET_PATTERNS
+            ),
+            "metrics": _evidence_for_field(
+                paper.title, paper.url, full_text, paper.abstract, "metrics", METRIC_PATTERNS
+            ),
+        }
+        field_evidence = {key: value for key, value in field_evidence.items() if value}
+        dataset_value = ", ".join(datasets) if datasets else "not explicit"
+        metric_value = ", ".join(metrics) if metrics else "not explicit"
+        model_type = (
+            "medical VLM / multimodal model"
+            if re.search(r"(vlm|vision-language|multimodal)", text, re.IGNORECASE)
+            else "not explicit"
+        )
         cards.append(
             PaperCard(
                 title=paper.title,
@@ -171,16 +280,24 @@ def build_paper_cards(
                 url=paper.url,
                 task=task,
                 method=method,
-                dataset=", ".join(datasets) if datasets else "not explicit",
-                metrics=", ".join(metrics) if metrics else "not explicit",
-                model_type="medical VLM / multimodal model"
-                if re.search(r"(vlm|vision-language|multimodal)", text, re.IGNORECASE)
-                else "not explicit",
+                dataset=dataset_value,
+                metrics=metric_value,
+                model_type=model_type,
                 claimed_contribution=contribution,
                 limitation=limitation,
                 relevance_score=row.relevance_score,
                 score_reasons=row.score_reasons,
-                evidence_snippets=evidence,
+                evidence_snippets=primary_evidence,
+                field_evidence=field_evidence,
+                extraction_status={
+                    "task": _status_for(task, inferred=True),
+                    "method": _status_for(method, inferred=True),
+                    "dataset": _status_for(dataset_value),
+                    "metrics": _status_for(metric_value),
+                    "model_type": _status_for(model_type, inferred=True),
+                    "limitation": _status_for(limitation, inferred=True),
+                },
+                coverage_tags=_coverage_tags(text, datasets, metrics, limitation, evidence_source),
             )
         )
     return cards

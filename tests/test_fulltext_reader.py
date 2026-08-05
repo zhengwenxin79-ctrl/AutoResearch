@@ -1,6 +1,7 @@
 from autoresearch.fulltext import split_sections
+from autoresearch.gap_finder import find_gaps
 from autoresearch.reader import build_paper_cards
-from autoresearch.schema import FullTextRecord, PaperRecord, RankedPaper, TextSection
+from autoresearch.schema import FieldMap, FullTextRecord, PaperRecord, RankedPaper, TextSection
 
 
 def test_split_sections_detects_common_headings():
@@ -47,4 +48,40 @@ def test_reader_uses_full_text_for_dataset_and_metric():
     assert cards[0].dataset == "MIMIC-CXR"
     assert "accuracy" in cards[0].metrics
     assert cards[0].evidence_snippets[0].section == "Methods"
+    assert "temporal_or_change" in cards[0].coverage_tags
+    assert "lesion_or_localization" in cards[0].coverage_tags
+    assert cards[0].extraction_status["dataset"] == "explicit"
+    assert cards[0].field_evidence["dataset"].section == "Methods"
 
+
+def test_gap_finder_scores_support_and_counter_evidence():
+    ranked = [
+        RankedPaper(
+            paper=PaperRecord(
+                title="Static medical VLM",
+                abstract="We propose a medical vision-language model for diagnosis.",
+                url="https://example.com/static",
+            ),
+            relevance_score=0.8,
+        ),
+        RankedPaper(
+            paper=PaperRecord(
+                title="Temporal lesion VLM",
+                abstract="We evaluate temporal lesion change analysis on MIMIC-CXR with accuracy.",
+                url="https://example.com/temporal",
+            ),
+            relevance_score=0.9,
+        ),
+    ]
+
+    cards = build_paper_cards(ranked)
+    gaps = find_gaps(cards, FieldMap())
+
+    lesion_gap = gaps[0]
+
+    assert lesion_gap.total_papers == 2
+    assert lesion_gap.support_count == 1
+    assert lesion_gap.counter_count == 1
+    assert lesion_gap.support_ratio == 0.5
+    assert lesion_gap.counter_ratio == 0.5
+    assert lesion_gap.score_reasons

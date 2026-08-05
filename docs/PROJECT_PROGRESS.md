@@ -34,6 +34,15 @@
   - ranked papers: 20
   - paper cards: 20
   - generated gaps: 3
+- Added Paper Card v2 and Gap Evidence Scoring:
+  - paper cards now include field-level evidence, extraction status, and coverage tags
+  - gap finder now scores support/counter/unclear coverage across retrieved papers
+  - confidence now includes score reasons and a full-text evidence count
+  - report now shows coverage tags and gap coverage statistics
+- Gap scoring smoke test passed on `medical VLM temporal lesion change analysis`:
+  - lesion-level temporal gap: support `15/20`, counter `5/20`, confidence `0.73`
+  - dataset/benchmark gap: support `16/20`, counter `4/20`, confidence `0.74`
+  - metric gap: support `8/20`, counter `12/20`, confidence `0.38`
 
 ## Next
 

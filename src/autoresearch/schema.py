@@ -86,6 +86,9 @@ class PaperCard(BaseModel):
     relevance_score: float = 0.0
     score_reasons: list[str] = Field(default_factory=list)
     evidence_snippets: list[EvidenceSnippet] = Field(default_factory=list)
+    field_evidence: dict[str, EvidenceSnippet] = Field(default_factory=dict)
+    extraction_status: dict[str, str] = Field(default_factory=dict)
+    coverage_tags: list[str] = Field(default_factory=list)
 
 
 class FieldMap(BaseModel):
@@ -102,6 +105,14 @@ class GapEvidence(BaseModel):
     evidence: list[EvidenceSnippet] = Field(default_factory=list)
     counter_evidence: list[EvidenceSnippet] = Field(default_factory=list)
     confidence: float = 0.0
+    support_count: int = 0
+    counter_count: int = 0
+    unclear_count: int = 0
+    total_papers: int = 0
+    support_ratio: float = 0.0
+    counter_ratio: float = 0.0
+    full_text_evidence_count: int = 0
+    score_reasons: list[str] = Field(default_factory=list)
     why_it_matters: str = ""
     research_opportunity: str = ""
 
