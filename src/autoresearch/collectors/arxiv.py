@@ -8,7 +8,6 @@ from autoresearch.http import get_client
 from autoresearch.schema import PaperRecord
 from autoresearch.utils import clean_text
 
-
 NS = {"atom": "http://www.w3.org/2005/Atom"}
 
 

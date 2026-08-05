@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import httpx
 
-
 USER_AGENT = "AutoResearch/0.1 (https://github.com/zhengwenxin79-ctrl/AutoResearch)"
 
 

@@ -15,6 +15,7 @@ def _evidence(cards: list[PaperCard], predicate, claim: str, limit: int = 4) -> 
                 source_url=card.url,
                 claim=claim,
                 snippet=snippet,
+                section=card.evidence_snippets[0].section if card.evidence_snippets else "",
             )
         )
         if len(snippets) >= limit:
@@ -94,4 +95,3 @@ def find_gaps(cards: list[PaperCard], field_map: FieldMap) -> list[GapEvidence]:
         )
 
     return gaps[:3]
-

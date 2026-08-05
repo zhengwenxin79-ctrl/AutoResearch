@@ -17,13 +17,14 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 
-autoresearch search "medical VLM temporal lesion change analysis" --limit 20
+autoresearch search "medical VLM temporal lesion change analysis" --limit 20 --full-text-limit 6
 ```
 
 Outputs are written to:
 
 ```text
 outputs/<topic-slug>/
+  raw/
   search_result.json
   paper_cards.json
   field_map.json
@@ -39,12 +40,13 @@ outputs/<topic-slug>/
 - DOI / PMID / arXiv / OpenAlex / fuzzy-title deduplication.
 - Explainable ranking using lexical relevance, recency, citation count, source reliability, and
   research-signal keywords.
-- Paper card extraction from title, abstract, and metadata.
+- Optional PDF/HTML full-text fetching for top-ranked papers.
+- Section splitting for abstract, methods, experiments, results, limitations, and related sections.
+- Paper card extraction from title, abstract, metadata, and section-aware full text when available.
 - Lightweight field mapping by task, method, dataset, metric, and model type.
-- Evidence-grounded gap finding with source URLs and snippets.
+- Evidence-grounded gap finding with source URLs, snippets, and section labels.
 - Markdown and JSON artifact export.
 
 ## Design Principle
 
 Every gap should be traceable to evidence. If evidence is weak, AutoResearch should say so.
-

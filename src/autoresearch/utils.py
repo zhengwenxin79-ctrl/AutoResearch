@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9\-]{1,}|[\u4e00-\u9fff]{2,}")
 
@@ -21,7 +20,7 @@ def tokens(value: str | None) -> list[str]:
 
 
 def current_year() -> int:
-    return datetime.now(timezone.utc).year
+    return datetime.now(UTC).year
 
 
 def clean_text(value: str | None, limit: int | None = None) -> str:

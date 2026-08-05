@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +51,24 @@ class EvidenceSnippet(BaseModel):
     source_url: str
     claim: str
     snippet: str
+    section: str = ""
+
+
+class TextSection(BaseModel):
+    heading: str
+    text: str
+
+
+class FullTextRecord(BaseModel):
+    title: str
+    source_url: str = ""
+    fetched_url: str = ""
+    raw_path: str = ""
+    text_path: str = ""
+    status: str = "not_attempted"
+    content_type: str = ""
+    sections: list[TextSection] = Field(default_factory=list)
+    error: str = ""
 
 
 class PaperCard(BaseModel):
@@ -90,10 +108,13 @@ class GapEvidence(BaseModel):
 
 class SearchArtifacts(BaseModel):
     topic: str
-    generated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    generated_at: str = Field(
+        default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    )
     query_plan: QueryPlan
     source_statuses: list[SourceStatus]
     ranked_papers: list[RankedPaper]
+    full_texts: list[FullTextRecord] = Field(default_factory=list)
     paper_cards: list[PaperCard]
     field_map: FieldMap
     gaps: list[GapEvidence]
@@ -114,4 +135,3 @@ class SearchArtifacts(BaseModel):
             "[" + ",\n".join(gap.model_dump_json(indent=2) for gap in self.gaps) + "]\n",
             encoding="utf-8",
         )
-

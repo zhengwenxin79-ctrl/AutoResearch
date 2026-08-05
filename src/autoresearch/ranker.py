@@ -6,7 +6,6 @@ from collections import Counter
 from .schema import PaperRecord, QueryPlan, RankedPaper
 from .utils import current_year, tokens
 
-
 SIGNAL_TERMS = {
     "dataset",
     "benchmark",
@@ -103,7 +102,7 @@ SOURCE_WEIGHT = {
 
 
 def _paper_text(paper: PaperRecord) -> str:
-    return " ".join([paper.title, paper.abstract, paper.venue, paper.url])
+    return f"{paper.title} {paper.abstract} {paper.venue} {paper.url}"
 
 
 def rank_papers(papers: list[PaperRecord], plan: QueryPlan, limit: int) -> list[RankedPaper]:

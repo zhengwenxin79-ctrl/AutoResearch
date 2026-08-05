@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from .schema import QueryPlan
 
-
 PERSPECTIVES = [
     "core task and problem formulation",
     "methods and model architectures",

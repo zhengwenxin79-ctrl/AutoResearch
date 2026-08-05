@@ -33,7 +33,20 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
         if ranked.score_reasons:
             lines.append(f"   - reasons: {'; '.join(ranked.score_reasons[:3])}")
 
-    lines.extend(["", "## 4. Paper Cards", ""])
+    lines.extend(["", "## 4. Full-Text Reading", ""])
+    if artifacts.full_texts:
+        for record in artifacts.full_texts:
+            section_count = len(record.sections)
+            lines.append(
+                f"- **{record.title}**: {record.status}, sections={section_count}, "
+                f"fetched_url={record.fetched_url or 'n/a'}"
+            )
+            if record.error:
+                lines.append(f"  - error: {record.error}")
+    else:
+        lines.append("- Full-text reading was not attempted.")
+
+    lines.extend(["", "## 5. Paper Cards", ""])
     for card in artifacts.paper_cards[:15]:
         lines.extend(
             [
@@ -47,7 +60,7 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
             ]
         )
 
-    lines.extend(["", "## 5. Field Map", ""])
+    lines.extend(["", "## 6. Field Map", ""])
     lines.append("### Tasks")
     for key, titles in artifacts.field_map.task_clusters.items():
         lines.append(f"- {key}: {len(titles)} papers")
@@ -64,7 +77,7 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
     for key, titles in artifacts.field_map.metrics.items():
         lines.append(f"- {key}: {len(titles)} papers")
 
-    lines.extend(["", "## 6. Core Gaps With Evidence", ""])
+    lines.extend(["", "## 7. Core Gaps With Evidence", ""])
     for idx, gap in enumerate(artifacts.gaps, start=1):
         lines.extend(
             [
@@ -76,8 +89,9 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
             ]
         )
         for evidence in gap.evidence:
+            section = f" [{evidence.section}]" if evidence.section else ""
             lines.append(
-                f"  - **{evidence.paper_title}**: {evidence.claim}. "
+                f"  - **{evidence.paper_title}**{section}: {evidence.claim}. "
                 f"[source]({evidence.source_url})  \n"
                 f"    Snippet: {evidence.snippet}"
             )
@@ -87,7 +101,7 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
                 lines.append(f"  - **{evidence.paper_title}**: {evidence.claim}. [source]({evidence.source_url})")
         lines.append("")
 
-    lines.extend(["## 7. Search Limitations", ""])
+    lines.extend(["## 8. Search Limitations", ""])
     if artifacts.warnings:
         for warning in artifacts.warnings:
             lines.append(f"- {warning}")
@@ -104,4 +118,3 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
     path = output_dir / "report.md"
     path.write_text("\n".join(lines), encoding="utf-8")
     return path
-
