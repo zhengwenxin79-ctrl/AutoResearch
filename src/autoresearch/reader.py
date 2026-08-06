@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import re
 
-from .schema import EvidenceSnippet, FullTextRecord, PaperCard, RankedPaper, TextSection
+from .schema import (
+    EvidenceSnippet,
+    FullTextRecord,
+    PaperCard,
+    PaperInfluence,
+    RankedPaper,
+    TextSection,
+)
 from .utils import clean_text
 
 TASK_PATTERNS = [
@@ -214,8 +221,10 @@ def _coverage_tags(
 def build_paper_cards(
     ranked: list[RankedPaper],
     full_texts: dict[str, FullTextRecord] | None = None,
+    influences: dict[str, PaperInfluence] | None = None,
 ) -> list[PaperCard]:
     full_texts = full_texts or {}
+    influences = influences or {}
     cards: list[PaperCard] = []
     for row in ranked:
         paper = row.paper
@@ -298,6 +307,7 @@ def build_paper_cards(
                     "limitation": _status_for(limitation, inferred=True),
                 },
                 coverage_tags=_coverage_tags(text, datasets, metrics, limitation, evidence_source),
+                influence=influences.get(paper.title),
             )
         )
     return cards

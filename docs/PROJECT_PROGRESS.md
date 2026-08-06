@@ -43,9 +43,14 @@
   - lesion-level temporal gap: support `15/20`, counter `5/20`, confidence `0.73`
   - dataset/benchmark gap: support `16/20`, counter `4/20`, confidence `0.74`
   - metric gap: support `8/20`, counter `12/20`, confidence `0.38`
+- Added Gap Evidence Chain v2:
+  - Semantic Scholar enrichment adds citations, influential citations, references, venue, fields of study, and open-access PDF links
+  - paper cards now include optional influence metadata
+  - each gap now includes paper-level judgments with `support` / `counter` / `unclear` roles
+  - judgments explain missing evidence and include influence score reasons
+  - confidence is adjusted when counter-evidence papers have notable influence signals
 
 ## Next
 
-- Add Semantic Scholar enrichment with optional API key.
 - Add LitSearch-style evaluation for search/ranking quality.
 - Add LLM-backed PaperCard extraction with strict evidence references.

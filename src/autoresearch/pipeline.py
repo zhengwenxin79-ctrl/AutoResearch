@@ -7,6 +7,7 @@ from rich.console import Console
 
 from .collectors import search_arxiv, search_crossref, search_openalex, search_pubmed
 from .dedupe import dedupe_papers
+from .enrichment import enrich_ranked_papers
 from .field_mapper import build_field_map
 from .fulltext import fetch_full_texts
 from .gap_finder import find_gaps
@@ -35,6 +36,7 @@ def run_search(
     output_root: Path = Path("outputs"),
     per_query_limit: int = 8,
     full_text_limit: int = 8,
+    enrichment_limit: int = 20,
     console: Console | None = None,
 ) -> tuple[SearchArtifacts, Path]:
     console = console or Console()
@@ -63,13 +65,22 @@ def run_search(
     deduped = dedupe_papers([paper for paper in papers if paper.title])
     ranked = rank_papers(deduped, plan, limit=limit)
     output_dir = output_root / slugify(topic)
+    influences = enrich_ranked_papers(ranked, limit=enrichment_limit)
+    for title, influence in influences.items():
+        if influence.status == "ok":
+            console.print(
+                f"[green]enrich[/green] {title[:80]} -> "
+                f"citations={influence.citation_count}, refs={influence.reference_count}"
+            )
+        else:
+            console.print(f"[yellow]enrich[/yellow] {title[:80]} -> {influence.status}: {influence.error[:120]}")
     full_texts = fetch_full_texts(ranked, raw_dir=output_dir / "raw", limit=full_text_limit)
     for record in full_texts.values():
         if record.status == "ok":
             console.print(f"[green]fulltext[/green] {record.title[:80]} -> {len(record.sections)} sections")
         else:
             console.print(f"[yellow]fulltext[/yellow] {record.title[:80]} -> {record.status}: {record.error[:120]}")
-    cards = build_paper_cards(ranked, full_texts=full_texts)
+    cards = build_paper_cards(ranked, full_texts=full_texts, influences=influences)
     field_map = build_field_map(cards)
     gaps = find_gaps(cards, field_map)
 
@@ -79,6 +90,7 @@ def run_search(
         source_statuses=statuses,
         ranked_papers=ranked,
         full_texts=list(full_texts.values()),
+        influences=list(influences.values()),
         paper_cards=cards,
         field_map=field_map,
         gaps=gaps,

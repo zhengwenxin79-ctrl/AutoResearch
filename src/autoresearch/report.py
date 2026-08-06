@@ -46,7 +46,25 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
     else:
         lines.append("- Full-text reading was not attempted.")
 
-    lines.extend(["", "## 5. Paper Cards", ""])
+    lines.extend(["", "## 5. Semantic Scholar Enrichment", ""])
+    if artifacts.influences:
+        for card in artifacts.paper_cards[:15]:
+            influence = card.influence
+            if not influence:
+                lines.append(f"- **{card.title}**: not attempted")
+                continue
+            if influence.status == "ok":
+                lines.append(
+                    f"- **{card.title}**: citations={influence.citation_count}, "
+                    f"influential={influence.influential_citation_count}, refs={influence.reference_count}, "
+                    f"open_pdf={'yes' if influence.open_access_pdf else 'no'}"
+                )
+            else:
+                lines.append(f"- **{card.title}**: {influence.status}, error={influence.error or 'n/a'}")
+    else:
+        lines.append("- Semantic Scholar enrichment was not attempted.")
+
+    lines.extend(["", "## 6. Paper Cards", ""])
     for card in artifacts.paper_cards[:15]:
         lines.extend(
             [
@@ -57,11 +75,12 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
                 f"- Metrics: {card.metrics}",
                 f"- Limitation: {card.limitation or 'not explicit'}",
                 f"- Coverage tags: {', '.join(card.coverage_tags) if card.coverage_tags else 'none'}",
+                f"- Influence score inputs: {', '.join(card.influence.fields_of_study) if card.influence and card.influence.fields_of_study else 'not available'}",
                 "",
             ]
         )
 
-    lines.extend(["", "## 6. Field Map", ""])
+    lines.extend(["", "## 7. Field Map", ""])
     lines.append("### Tasks")
     for key, titles in artifacts.field_map.task_clusters.items():
         lines.append(f"- {key}: {len(titles)} papers")
@@ -78,7 +97,7 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
     for key, titles in artifacts.field_map.metrics.items():
         lines.append(f"- {key}: {len(titles)} papers")
 
-    lines.extend(["", "## 7. Core Gaps With Evidence", ""])
+    lines.extend(["", "## 8. Core Gaps With Evidence", ""])
     for idx, gap in enumerate(artifacts.gaps, start=1):
         lines.extend(
             [
@@ -107,9 +126,27 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
             lines.append("- Counter evidence:")
             for evidence in gap.counter_evidence:
                 lines.append(f"  - **{evidence.paper_title}**: {evidence.claim}. [source]({evidence.source_url})")
+        if gap.paper_judgments:
+            lines.append("- Paper-level judgments:")
+            for judgment in gap.paper_judgments[:10]:
+                missing = (
+                    f"; missing: {', '.join(judgment.missing_evidence)}"
+                    if judgment.missing_evidence
+                    else ""
+                )
+                reasons = (
+                    f"; influence: {', '.join(judgment.influence_reasons[:3])}"
+                    if judgment.influence_reasons
+                    else ""
+                )
+                lines.append(
+                    f"  - **{judgment.paper_title}**: decision={judgment.decision}, "
+                    f"role={judgment.role}, influence_score={judgment.influence_score}"
+                    f"{missing}{reasons}"
+                )
         lines.append("")
 
-    lines.extend(["## 8. Search Limitations", ""])
+    lines.extend(["## 9. Search Limitations", ""])
     if artifacts.warnings:
         for warning in artifacts.warnings:
             lines.append(f"- {warning}")

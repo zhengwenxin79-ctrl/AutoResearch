@@ -71,6 +71,22 @@ class FullTextRecord(BaseModel):
     error: str = ""
 
 
+class PaperInfluence(BaseModel):
+    source: str = ""
+    paper_id: str = ""
+    url: str = ""
+    citation_count: int = 0
+    influential_citation_count: int = 0
+    reference_count: int = 0
+    venue: str = ""
+    is_open_access: bool = False
+    open_access_pdf: str = ""
+    fields_of_study: list[str] = Field(default_factory=list)
+    tldr: str = ""
+    status: str = "not_attempted"
+    error: str = ""
+
+
 class PaperCard(BaseModel):
     title: str
     year: int | None = None
@@ -89,6 +105,7 @@ class PaperCard(BaseModel):
     field_evidence: dict[str, EvidenceSnippet] = Field(default_factory=dict)
     extraction_status: dict[str, str] = Field(default_factory=dict)
     coverage_tags: list[str] = Field(default_factory=list)
+    influence: PaperInfluence | None = None
 
 
 class FieldMap(BaseModel):
@@ -98,6 +115,18 @@ class FieldMap(BaseModel):
     metrics: dict[str, list[str]] = Field(default_factory=dict)
     model_types: dict[str, list[str]] = Field(default_factory=dict)
     coverage_notes: list[str] = Field(default_factory=list)
+
+
+class GapPaperJudgment(BaseModel):
+    paper_title: str
+    source_url: str
+    decision: str = "unclear"
+    role: str = "unclear"
+    rationale: str = ""
+    evidence: EvidenceSnippet | None = None
+    missing_evidence: list[str] = Field(default_factory=list)
+    influence_score: float = 0.0
+    influence_reasons: list[str] = Field(default_factory=list)
 
 
 class GapEvidence(BaseModel):
@@ -113,6 +142,7 @@ class GapEvidence(BaseModel):
     counter_ratio: float = 0.0
     full_text_evidence_count: int = 0
     score_reasons: list[str] = Field(default_factory=list)
+    paper_judgments: list[GapPaperJudgment] = Field(default_factory=list)
     why_it_matters: str = ""
     research_opportunity: str = ""
 
@@ -126,6 +156,7 @@ class SearchArtifacts(BaseModel):
     source_statuses: list[SourceStatus]
     ranked_papers: list[RankedPaper]
     full_texts: list[FullTextRecord] = Field(default_factory=list)
+    influences: list[PaperInfluence] = Field(default_factory=list)
     paper_cards: list[PaperCard]
     field_map: FieldMap
     gaps: list[GapEvidence]
@@ -138,6 +169,10 @@ class SearchArtifacts(BaseModel):
         )
         (output_dir / "paper_cards.json").write_text(
             self.model_dump_json(include={"paper_cards"}, indent=2), encoding="utf-8"
+        )
+        (output_dir / "influences.json").write_text(
+            "[" + ",\n".join(row.model_dump_json(indent=2) for row in self.influences) + "]\n",
+            encoding="utf-8",
         )
         (output_dir / "field_map.json").write_text(
             self.field_map.model_dump_json(indent=2), encoding="utf-8"
