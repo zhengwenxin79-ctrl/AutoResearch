@@ -296,6 +296,29 @@ class ResearchOpportunity(BaseModel):
     evidence_refs: list[str] = Field(default_factory=list)
 
 
+class SynthesisGapSummary(BaseModel):
+    gap: str
+    judgment: str = ""
+    support: str = ""
+    counter_evidence: str = ""
+    evidence_refs: list[str] = Field(default_factory=list)
+    confidence: float = 0.0
+
+
+class SynthesisReport(BaseModel):
+    mode: str = "codex_substituted_llm"
+    status: str = "draft"
+    executive_summary: str = ""
+    domain_interpretation: str = ""
+    search_assessment: str = ""
+    moc_takeaways: list[str] = Field(default_factory=list)
+    gap_summaries: list[SynthesisGapSummary] = Field(default_factory=list)
+    recommended_opportunities: list[str] = Field(default_factory=list)
+    evidence_quality: str = ""
+    limitations: list[str] = Field(default_factory=list)
+    next_steps: list[str] = Field(default_factory=list)
+
+
 class SearchArtifacts(BaseModel):
     topic: str
     generated_at: str = Field(
@@ -317,6 +340,7 @@ class SearchArtifacts(BaseModel):
     comparison_matrix: ComparisonMatrix | None = None
     gaps: list[GapEvidence]
     research_opportunities: list[ResearchOpportunity] = Field(default_factory=list)
+    synthesis: SynthesisReport | None = None
     warnings: list[str] = Field(default_factory=list)
 
     def write_json(self, output_dir: Path) -> None:
@@ -327,6 +351,10 @@ class SearchArtifacts(BaseModel):
         if self.domain_profile:
             (output_dir / "domain_profile.json").write_text(
                 self.domain_profile.model_dump_json(indent=2), encoding="utf-8"
+            )
+        if self.synthesis:
+            (output_dir / "synthesis.json").write_text(
+                self.synthesis.model_dump_json(indent=2), encoding="utf-8"
             )
         (output_dir / "paper_cards.json").write_text(
             self.model_dump_json(include={"paper_cards"}, indent=2), encoding="utf-8"

@@ -228,6 +228,26 @@
     benchmark protocol, and target-capability metric coverage
   - limitation found: GUI Agent run still admits some adjacent medical/clinical agent papers because
     ranker and source selection are not fully profile-aware yet
+- Implemented Codex-substituted synthesis layer for the later LLM analysis step:
+  - added `SynthesisReport` and `SynthesisGapSummary` schema objects
+  - added `src/autoresearch/synthesizer.py` to summarize Domain Profile, source quality, MOC
+    takeaways, Gap evidence chains, research opportunities, limitations, and next steps in Chinese
+  - search runs now write `synthesis.json` and `analysis_report.md`
+  - added `autoresearch synthesize <output-dir-or-search_result.json>` to regenerate synthesis from
+    existing artifacts
+  - Dashboard now includes a Chinese `分析 / 综合分析` tab and a link to `analysis_report.md`
+- Rebuilt synthesis demos:
+  - Medical VLM analysis report:
+    `outputs/medical-vlm-temporal-lesion-change-analysis/analysis_report.md`
+  - GUI Agent analysis report:
+    `outputs/gui-agent-benchmark-real-world-workflow/analysis_report.md`
+- Fixed non-medical profile leakage in rule-based paper-card extraction:
+  - GUI/LLM agent profiles no longer reuse medical-only task labels, method-family labels, gap
+    hints, dataset fallbacks, metric fallbacks, or lesion localization coverage tags
+  - regression test added to ensure a medical-looking paper mixed into a GUI Agent run is treated as
+    adjacent evidence instead of forcing medical templates
+  - remaining limitation: ranker and source selection can still retrieve adjacent clinical-agent
+    papers; this is a source/ranking problem, not a paper-card template problem
 
 ## Next
 

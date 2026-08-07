@@ -29,6 +29,7 @@ from .reader import build_paper_cards
 from .report import write_report
 from .schema import PaperRecord, SearchArtifacts, SourceStatus
 from .source_health import evaluate_source_readiness
+from .synthesizer import build_synthesis, write_analysis_report
 from .utils import slugify
 
 Collector = Callable[[str, int], list[PaperRecord]]
@@ -177,7 +178,9 @@ def run_search(
         research_opportunities=research_opportunities,
         warnings=warnings,
     )
+    artifacts.synthesis = build_synthesis(artifacts)
     artifacts.write_json(output_dir)
+    write_analysis_report(artifacts, output_dir)
     write_report(artifacts, output_dir)
     write_dashboard(artifacts, output_dir)
     return artifacts, output_dir

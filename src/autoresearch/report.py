@@ -497,6 +497,15 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
     lines.append(f"- Gap evidence chains: `{gap_chain_path.name}`")
     lines.append(f"- Research opportunities: `{opportunity_path.name}`")
     lines.append(f"- Weakness report: `{weakness_path.name}`")
+    if artifacts.synthesis:
+        lines.append("- LLM-style synthesis: `analysis_report.md`")
+
+    if artifacts.synthesis:
+        lines.extend(["", "## LLM-Style Synthesis", ""])
+        lines.append(artifacts.synthesis.executive_summary)
+        lines.extend(["", "Key Gap Judgments:"])
+        for gap in artifacts.synthesis.gap_summaries[:5]:
+            lines.append(f"- **{gap.gap}**: {gap.judgment}")
 
     lines.extend(["", "## 2. Source Execution", ""])
     for status in artifacts.source_statuses:

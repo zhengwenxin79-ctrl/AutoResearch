@@ -8,6 +8,8 @@ from rich.console import Console
 from .dashboard import load_artifacts, write_dashboard
 from .domain_profile import generate_domain_profile, save_domain_profile
 from .pipeline import run_search
+from .report import write_report
+from .synthesizer import build_synthesis, write_analysis_report
 from .utils import slugify
 
 app = typer.Typer(help="AutoResearch command line interface.", no_args_is_help=True)
@@ -81,6 +83,25 @@ def search(
     console.print(f"Gaps: {len(artifacts.gaps)}")
     console.print(f"Report: {output_dir / 'report.md'}")
     console.print(f"Dashboard: {output_dir / 'dashboard.html'}")
+
+
+@app.command()
+def synthesize(
+    artifact_path: Path = typer.Argument(  # noqa: B008
+        ...,
+        help="Output directory or search_result.json path.",
+    ),
+) -> None:
+    """Generate the Chinese LLM-style synthesis from existing artifacts."""
+    artifacts = load_artifacts(artifact_path)
+    target_dir = artifact_path if artifact_path.is_dir() else artifact_path.parent
+    artifacts.synthesis = build_synthesis(artifacts)
+    artifacts.write_json(target_dir)
+    analysis_path = write_analysis_report(artifacts, target_dir)
+    write_report(artifacts, target_dir)
+    path = write_dashboard(artifacts, target_dir)
+    console.print(f"[bold green]Done[/bold green] wrote synthesis to {analysis_path}")
+    console.print(f"Dashboard: {path}")
 
 
 @app.command("profile")

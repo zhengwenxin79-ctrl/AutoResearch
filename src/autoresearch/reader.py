@@ -54,6 +54,11 @@ METRIC_PATTERNS = [
     r"IoU",
 ]
 
+GENERIC_METRIC_PATTERNS = [
+    r"accuracy",
+    r"F1",
+]
+
 TEMPORAL_PATTERNS = [
     r"\btemporal\b",
     r"\blongitudinal\b",
@@ -232,8 +237,13 @@ def _coverage_tags(
     tags: list[str] = []
     if _has_any(text, TEMPORAL_PATTERNS):
         tags.append("temporal_or_change")
-    if _has_any(text, LESION_PATTERNS):
+    if profile.domain_id == "medical-vlm" and _has_any(text, LESION_PATTERNS):
         tags.append("lesion_or_localization")
+    elif profile.domain_id != "medical-vlm" and _has_any(
+        text,
+        [r"\blocali[sz]ation\b", r"\bgrounding\b", r"\bmask\b", r"\bregion\b"],
+    ):
+        tags.append("localization_or_grounding")
     benchmark_patterns = [*BENCHMARK_PATTERNS, *_profile_patterns(profile.benchmark_keywords)]
     if _has_any(text, benchmark_patterns):
         tags.append("benchmark_or_evaluation")
@@ -258,6 +268,10 @@ def _problem_for(task: str, coverage_tags: list[str], profile: DomainProfile) ->
     for dimension in profile.capability_dimensions:
         if capability_tag(dimension.name) in coverage_tags:
             return dimension.name
+    if profile.domain_id != "medical-vlm":
+        if "benchmark_or_evaluation" in coverage_tags:
+            return f"{profile.domain_name} benchmark and evaluation"
+        return f"general {profile.domain_name} capability"
     if "temporal_or_change" in coverage_tags and "lesion_or_localization" in coverage_tags:
         return "lesion-level temporal change reasoning"
     if "temporal_or_change" in coverage_tags:
@@ -273,9 +287,11 @@ def _problem_for(task: str, coverage_tags: list[str], profile: DomainProfile) ->
     return f"general {profile.domain_name} capability"
 
 
-def _method_family_for(method: str, model_type: str) -> str:
+def _method_family_for(method: str, model_type: str, profile: DomainProfile) -> str:
     if "mask" in method:
-        return "lesion- or region-guided modeling"
+        if profile.domain_id == "medical-vlm":
+            return "lesion- or region-guided modeling"
+        return "region- or interface-grounded modeling"
     if "instruction" in method:
         return "instruction-tuned multimodal modeling"
     if "contrastive" in method or "alignment" in method:
@@ -283,7 +299,9 @@ def _method_family_for(method: str, model_type: str) -> str:
     if "retrieval" in method:
         return "retrieval-augmented multimodal modeling"
     if "vision-language" in method or "multimodal" in model_type:
-        return "medical vision-language foundation model"
+        if profile.domain_id == "medical-vlm":
+            return "medical vision-language foundation model"
+        return f"{profile.domain_name} multimodal or agent model"
     return "method family not explicit"
 
 
@@ -295,6 +313,10 @@ def _core_assumption_for(task: str, coverage_tags: list[str], profile: DomainPro
     ]
     if covered:
         return f"{covered[0]} can serve as a proxy for the target {profile.domain_name} workflow."
+    if profile.domain_id != "medical-vlm":
+        if "benchmark_or_evaluation" in coverage_tags:
+            return f"benchmark performance transfers to the target {profile.domain_name} workflow."
+        return f"broad {profile.domain_name} performance transfers to the target research workflow."
     if "temporal_or_change" in coverage_tags and "lesion_or_localization" in coverage_tags:
         return "localized findings can serve as anchors for comparing disease state across time."
     if "temporal_or_change" in coverage_tags:
@@ -329,10 +351,11 @@ def _missing_capability_for(coverage_tags: list[str], profile: DomainProfile) ->
     for dimension in profile.capability_dimensions:
         if dimension.required and capability_tag(dimension.name) not in coverage_tags:
             missing.append(dimension.name)
-    if "temporal_or_change" not in coverage_tags:
-        missing.append("explicit temporal/change reasoning")
-    if "lesion_or_localization" not in coverage_tags:
-        missing.append("lesion-level localization or grounding")
+    if profile.domain_id == "medical-vlm":
+        if "temporal_or_change" not in coverage_tags:
+            missing.append("explicit temporal/change reasoning")
+        if "lesion_or_localization" not in coverage_tags:
+            missing.append("lesion-level localization or grounding")
     if "metric_missing" in coverage_tags:
         missing.append("capability-specific metrics")
     if "dataset_missing" in coverage_tags:
@@ -350,6 +373,17 @@ def _relation_to_topic_for(coverage_tags: list[str], profile: DomainProfile) -> 
         return f"direct evidence for {', '.join(covered[:2])} in the {profile.domain_name} profile"
     has_temporal = "temporal_or_change" in coverage_tags
     has_lesion = "lesion_or_localization" in coverage_tags
+    has_localization = "localization_or_grounding" in coverage_tags
+    if profile.domain_id != "medical-vlm":
+        if has_temporal and has_localization:
+            return f"candidate evidence for temporal and grounded {profile.domain_name} workflows"
+        if has_temporal:
+            return f"temporal or long-horizon candidate for the {profile.domain_name} profile"
+        if has_localization:
+            return f"grounding or localization candidate for the {profile.domain_name} profile"
+        if "benchmark_or_evaluation" in coverage_tags:
+            return "evaluation context that may expose benchmark coverage gaps"
+        return f"background or adjacent {profile.domain_name} evidence"
     if has_temporal and has_lesion:
         return "direct candidate for the target problem space"
     if has_temporal:
@@ -361,7 +395,28 @@ def _relation_to_topic_for(coverage_tags: list[str], profile: DomainProfile) -> 
     return f"background or adjacent {profile.domain_name} evidence"
 
 
-def _gap_hint_for(problem: str, missing_capability: str, coverage_tags: list[str]) -> str:
+def _gap_hint_for(
+    problem: str,
+    missing_capability: str,
+    coverage_tags: list[str],
+    profile: DomainProfile,
+) -> str:
+    if profile.domain_id != "medical-vlm":
+        if "not obvious" in missing_capability:
+            return (
+                f"Audit whether {problem} is truly evaluated under the target "
+                f"{profile.domain_name} workflow."
+            )
+        if "capability-specific metrics" in missing_capability:
+            return (
+                "The paper may support a gap around metrics that miss the target "
+                f"{profile.domain_name} capability."
+            )
+        if "explicit dataset" in missing_capability:
+            return "The paper may support a gap around benchmark comparability and dataset transparency."
+        if "metric_explicit" in coverage_tags and "dataset_explicit" in coverage_tags:
+            return "Use this paper as possible counter-evidence when testing whether the gap still holds."
+        return "Use this paper to refine the problem-space map before claiming a gap."
     if "not obvious" in missing_capability:
         return f"Audit whether {problem} is truly evaluated under the target clinical workflow."
     if "temporal/change" in missing_capability and "lesion-level" in missing_capability:
@@ -388,26 +443,33 @@ def build_paper_cards(
     full_texts = full_texts or {}
     influences = influences or {}
     profile = profile or load_domain_profile("medical-vlm", "")
-    task_patterns = [
-        *TASK_PATTERNS,
-        *[
-            (pattern, keyword)
-            for pattern, keyword in zip(
-                _profile_patterns(profile.task_keywords),
-                profile.task_keywords,
-                strict=False,
-            )
-        ],
+    profile_task_patterns = [
+        (pattern, keyword)
+        for pattern, keyword in zip(
+            _profile_patterns(profile.task_keywords),
+            profile.task_keywords,
+            strict=False,
+        )
     ]
+    task_patterns = (
+        [*TASK_PATTERNS, *profile_task_patterns]
+        if profile.domain_id == "medical-vlm"
+        else profile_task_patterns
+    )
     method_patterns = [
         *METHOD_PATTERNS,
         *[(pattern, keyword) for pattern, keyword in zip(_profile_patterns(profile.method_keywords), profile.method_keywords, strict=False)],
     ]
-    dataset_patterns = [
-        *DATASET_PATTERNS,
-        *_profile_patterns([*profile.dataset_keywords, *profile.benchmark_keywords]),
-    ]
-    metric_patterns = [*METRIC_PATTERNS, *_profile_patterns(profile.metric_keywords)]
+    dataset_patterns = (
+        [*DATASET_PATTERNS, *_profile_patterns([*profile.dataset_keywords, *profile.benchmark_keywords])]
+        if profile.domain_id == "medical-vlm"
+        else _profile_patterns([*profile.dataset_keywords, *profile.benchmark_keywords])
+    )
+    metric_patterns = (
+        [*METRIC_PATTERNS, *_profile_patterns(profile.metric_keywords)]
+        if profile.domain_id == "medical-vlm"
+        else [*GENERIC_METRIC_PATTERNS, *_profile_patterns(profile.metric_keywords)]
+    )
     cards: list[PaperCard] = []
     for row in ranked:
         paper = row.paper
@@ -417,11 +479,14 @@ def build_paper_cards(
         task = _first_match(text, task_patterns, f"general {profile.domain_name} research")
         method = _first_match(text, method_patterns, "not explicit in abstract")
         datasets = _profile_term_hits(text, profile.dataset_keywords)
-        if not datasets:
+        if not datasets and profile.domain_id == "medical-vlm":
             datasets = _find_terms(text, DATASET_PATTERNS)
         metrics = _profile_term_hits(text, profile.metric_keywords)
         if not metrics:
-            metrics = _find_terms(text, METRIC_PATTERNS)
+            fallback_metric_patterns = (
+                METRIC_PATTERNS if profile.domain_id == "medical-vlm" else GENERIC_METRIC_PATTERNS
+            )
+            metrics = _find_terms(text, fallback_metric_patterns)
         limitation = ""
         limitation_scope = " ".join([paper.title, paper.abstract, extracted_text[:5000]])
         if re.search(
@@ -466,18 +531,22 @@ def build_paper_cards(
         dataset_value = ", ".join(datasets) if datasets else "not explicit"
         metric_value = ", ".join(metrics) if metrics else "not explicit"
         model_type = (
-            "medical VLM / multimodal model"
+            (
+                "medical VLM / multimodal model"
+                if profile.domain_id == "medical-vlm"
+                else f"{profile.domain_name} multimodal or agent model"
+            )
             if re.search(r"(vlm|vision-language|multimodal)", text, re.IGNORECASE)
             else "not explicit"
         )
         coverage_tags = _coverage_tags(text, datasets, metrics, limitation, evidence_source, profile)
         problem = _problem_for(task, coverage_tags, profile)
-        method_family = _method_family_for(method, model_type)
+        method_family = _method_family_for(method, model_type, profile)
         core_assumption = _core_assumption_for(task, coverage_tags, profile)
         evidence_type = _evidence_type_for(evidence_source, datasets, metrics, coverage_tags)
         missing_capability = _missing_capability_for(coverage_tags, profile)
         relation_to_topic = _relation_to_topic_for(coverage_tags, profile)
-        gap_hint = _gap_hint_for(problem, missing_capability, coverage_tags)
+        gap_hint = _gap_hint_for(problem, missing_capability, coverage_tags, profile)
         cards.append(
             PaperCard(
                 title=paper.title,

@@ -84,7 +84,7 @@ HTML_TEMPLATE = """<!doctype html>
     .tab-button.active { background: #20332e; color: #fff; border-color: #20332e; }
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 12px;
       margin: 18px 0;
     }
@@ -275,6 +275,7 @@ HTML_TEMPLATE = """<!doctype html>
         <button class="link-button" data-tab-go="papers" type="button">论文卡片</button>
         <button class="link-button" data-tab-go="gaps" type="button">Gap 证据链</button>
         <button class="link-button" data-tab-go="opportunities" type="button">研究机会</button>
+        <button class="link-button" data-tab-go="synthesis" type="button">综合分析</button>
       </div>
     </header>
 
@@ -288,6 +289,7 @@ HTML_TEMPLATE = """<!doctype html>
       <button class="tab-button" data-tab="moc">MOC</button>
       <button class="tab-button" data-tab="gaps">Gap</button>
       <button class="tab-button" data-tab="opportunities">机会</button>
+      <button class="tab-button" data-tab="synthesis">分析</button>
     </nav>
 
     <section id="overview" class="section active"></section>
@@ -295,6 +297,7 @@ HTML_TEMPLATE = """<!doctype html>
     <section id="moc" class="section"></section>
     <section id="gaps" class="section"></section>
     <section id="opportunities" class="section"></section>
+    <section id="synthesis" class="section"></section>
   </main>
 
   <script>
@@ -511,6 +514,8 @@ HTML_TEMPLATE = """<!doctype html>
         needs_more_evidence: "证据不足，需继续检索",
         not_evaluated: "未评估",
         ok: "成功",
+        ready: "已生成",
+        draft: "草稿",
         failed: "失败",
         skipped: "已跳过",
         no_update: "无更新",
@@ -578,6 +583,7 @@ HTML_TEMPLATE = """<!doctype html>
         metric("MOC 空间", mocCount, "问题空间分组"),
         metric("Gap", data.gaps?.length || 0, "带证据的判断"),
         metric("研究机会", data.research_opportunities?.length || 0, "候选项目方向"),
+        metric("综合分析", statusLabel(data.synthesis?.status), "Codex 代替 LLM 生成"),
       ].join("");
     };
 
@@ -881,6 +887,87 @@ HTML_TEMPLATE = """<!doctype html>
       `;
     };
 
+    const renderSynthesis = () => {
+      const synthesis = data.synthesis || null;
+      if (!synthesis) {
+        document.getElementById("synthesis").innerHTML = `
+          <div class="empty">本次还没有生成综合分析。可以运行 autoresearch synthesize <output-dir> 生成。</div>
+        `;
+        return;
+      }
+      document.getElementById("synthesis").innerHTML = `
+        <div class="toolbar">
+          <div>
+            <h2>综合分析</h2>
+            <p class="subtle">Codex 代替外部 LLM，根据 Profile、MOC、Gap 证据链和研究机会生成。</p>
+          </div>
+          <a class="link-button" href="analysis_report.md">查看分析报告</a>
+        </div>
+        <article class="card">
+          <div class="card-header">
+            <h3>总体判断</h3>
+            <span class="badge ${badgeClass(synthesis.status)}">${esc(statusLabel(synthesis.status))}</span>
+          </div>
+          <p>${esc(synthesis.executive_summary)}</p>
+          <dl class="kv">
+            <dt>领域理解</dt><dd>${esc(synthesis.domain_interpretation)}</dd>
+            <dt>信息源判断</dt><dd>${esc(synthesis.search_assessment)}</dd>
+            <dt>证据质量</dt><dd>${esc(synthesis.evidence_quality)}</dd>
+          </dl>
+        </article>
+        <div class="grid-2" style="margin-top:14px;">
+          <section>
+            <h2>MOC 结论</h2>
+            ${(synthesis.moc_takeaways || []).map((item, idx) => `
+              <article class="card">
+                <h3>${idx + 1}. MOC Takeaway</h3>
+                <p>${esc(item)}</p>
+              </article>
+            `).join("") || `<div class="empty">暂无 MOC 结论。</div>`}
+          </section>
+          <section>
+            <h2>下一步</h2>
+            <article class="card">
+              <ol class="evidence-list">
+                ${(synthesis.next_steps || []).map(item => `<li>${esc(item)}</li>`).join("") || "<li>暂无下一步建议。</li>"}
+              </ol>
+            </article>
+            <h2 style="margin-top:16px;">当前限制</h2>
+            <article class="card">
+              <ol class="evidence-list">
+                ${(synthesis.limitations || []).map(item => `<li>${esc(item)}</li>`).join("") || "<li>暂无明确限制。</li>"}
+              </ol>
+            </article>
+          </section>
+        </div>
+        <h2 style="margin-top:16px;">Gap 判断</h2>
+        ${(synthesis.gap_summaries || []).map((gap, idx) => `
+          <details class="card fold-card" ${idx === 0 ? "open" : ""}>
+            <summary class="fold-summary">
+              <div>
+                <h3>Gap ${idx + 1}: ${esc(zh(gap.gap))}</h3>
+                <p class="subtle">置信度 ${esc(gap.confidence)}；${esc(gap.judgment)}</p>
+              </div>
+            </summary>
+            <div class="fold-content">
+              <dl class="kv">
+                <dt>判断</dt><dd>${esc(gap.judgment)}</dd>
+                <dt>支持证据</dt><dd>${esc(gap.support)}</dd>
+                <dt>反证</dt><dd>${esc(gap.counter_evidence)}</dd>
+                <dt>证据引用</dt><dd>${join(gap.evidence_refs)}</dd>
+              </dl>
+            </div>
+          </details>
+        `).join("") || `<div class="empty">暂无 Gap 判断。</div>`}
+        <h2 style="margin-top:16px;">研究机会</h2>
+        <article class="card">
+          <ol class="evidence-list">
+            ${(synthesis.recommended_opportunities || []).map(item => `<li>${esc(item)}</li>`).join("") || "<li>暂无研究机会建议。</li>"}
+          </ol>
+        </article>
+      `;
+    };
+
     const renderAll = () => {
       renderProfileStrip();
       renderSummary();
@@ -890,6 +977,7 @@ HTML_TEMPLATE = """<!doctype html>
       renderMoc();
       renderGaps();
       renderOpportunities();
+      renderSynthesis();
     };
 
     const setActiveTab = (tab) => {

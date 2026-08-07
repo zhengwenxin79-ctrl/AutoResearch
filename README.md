@@ -39,6 +39,12 @@ To regenerate the UI from an existing run:
 autoresearch dashboard outputs/medical-vlm-temporal-lesion-change-analysis
 ```
 
+To regenerate the Chinese synthesis and UI from an existing run:
+
+```bash
+autoresearch synthesize outputs/gui-agent-benchmark-real-world-workflow
+```
+
 Optional Semantic Scholar API key:
 
 ```bash
@@ -71,6 +77,8 @@ outputs/<topic-slug>/
   raw/
   source_coverage.md
   search_result.json
+  synthesis.json
+  analysis_report.md
   paper_cards.json
   paper_insights.json
   influences.json
@@ -114,6 +122,8 @@ outputs/<topic-slug>/
 - Paper Card v2 fields with problem, method family, core assumption, evidence type, missing
   capability, relation-to-topic, gap hint, per-field evidence snippets, extraction status, and
   coverage tags.
+- Profile-aware non-medical paper-card heuristics so GUI/LLM agent runs do not reuse medical-only
+  task, gap-hint, method-family, dataset, metric, or localization templates.
 - Optional LLM-backed Paper Card refinement through an OpenAI-compatible chat-completions endpoint.
   It is disabled by default and only updates fields that cite existing evidence snippet IDs.
 - Paper Insight Cards that capture problem, method core, evidence, assumption, limitation,
@@ -132,10 +142,13 @@ outputs/<topic-slug>/
 - Gap Evidence Chain v2 paper-level judgments: each paper is marked as support, counter, or unclear
   for each gap, with missing evidence and influence signals.
 - Gap evidence chain Markdown export plus evidence-backed research opportunity generation.
+- Chinese synthesis layer that lets Codex stand in for the later LLM step by summarizing Domain
+  Profile, source quality, MOC takeaways, Gap evidence chains, limitations, and next actions into
+  `analysis_report.md` and `synthesis.json`.
 - Weakness report optimized for research discussion: how each weakness emerges, evidence chain,
   counter evidence, why still open, experimentable idea, and verification plan.
 - Static local dashboard UI for source health, paper cards, MOC problem spaces, gap evidence chains,
-  and research opportunities.
+  research opportunities, and synthesis.
 - Dashboard UI labels and rule-generated research signals are localized in Chinese while preserving
   original paper titles and evidence snippets.
 - Dashboard top actions switch between Chinese in-page tabs instead of jumping to Markdown exports.

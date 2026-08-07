@@ -34,12 +34,27 @@ def test_profile_driven_gaps_are_not_medical_only():
             ),
             relevance_score=0.8,
         ),
+        RankedPaper(
+            paper=PaperRecord(
+                title="A clinical mask-guided report generation system",
+                abstract=(
+                    "The system uses lesion masks for clinical report generation, but it does not "
+                    "evaluate WebArena, OSWorld, long-horizon workflows, or recovery rate."
+                ),
+            ),
+            relevance_score=0.7,
+        ),
     ]
 
     cards = build_paper_cards(ranked, profile=profile)
     gaps = find_gaps(cards, FieldMap(), profile=profile)
 
     assert any("capability:real-world-long-horizon-workflow" in card.coverage_tags for card in cards)
+    assert all("lesion" not in card.missing_capability.lower() for card in cards)
+    assert all("lesion" not in card.method_family.lower() for card in cards)
+    assert all("clinical workflow" not in card.gap_hint.lower() for card in cards)
+    assert all("medical report generation" != card.task for card in cards)
+    assert all("lesion_or_localization" not in card.coverage_tags for card in cards)
     assert gaps
     assert all("Lesion-level" not in gap.gap for gap in gaps)
     assert any(gap.gap.startswith("GUI Agent:") for gap in gaps)
