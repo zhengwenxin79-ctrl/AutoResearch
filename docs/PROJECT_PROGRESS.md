@@ -248,11 +248,26 @@
     adjacent evidence instead of forcing medical templates
   - remaining limitation: ranker and source selection can still retrieve adjacent clinical-agent
     papers; this is a source/ranking problem, not a paper-card template problem
+- Reframed the near-term LLM strategy as Codex-in-the-loop before local/remote model automation:
+  - the program collects papers, extracts cards, builds rule-based MOC/Gaps, and packages evidence
+  - Codex manually plays the expensive reasoning role: MOC refinement, Gap rewriting, counter-evidence
+    resolution, research opportunity design, and next-step planning
+  - the same result schema can later be produced by a local model such as LM Studio, Ollama, or vLLM
+- Implemented Codex Manual LLM Review v1:
+  - added `autoresearch codex-packet <output-dir-or-search_result.json>` to export
+    `codex_review_packet.md`, `codex_review_packet.json`, and `codex_review_result.template.json`
+  - added `autoresearch codex-apply <output-dir-or-search_result.json> <codex_review_result.json>`
+    to import Codex's structured judgment back into `synthesis`, `topic_moc`, `comparison_matrix`,
+    `gaps`, `research_opportunities`, reports, and `dashboard.html`
+  - added validation schemas for Codex MOC groups, refined gaps, opportunities, and synthesis fields
+  - added tests for packet export and applying Codex review results
 
 ## Next
 
 - Make ranker and source selection profile-aware so non-medical runs avoid irrelevant PubMed /
   clinical-agent drift.
+- Use Codex Manual LLM Review v1 on the GUI Agent demo, then convert the same schema into a local
+  model backend for LM Studio/Ollama/vLLM.
 - Add LLM-backed PaperInsight and MOC group refinement with strict evidence references.
 - Add prompt/evaluation fixtures to compare rule-based vs LLM-backed card extraction quality.
 - Add query/source balancing so weak sources do not dominate runtime and source diversity is explicit.

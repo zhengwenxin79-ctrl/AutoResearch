@@ -45,6 +45,16 @@ To regenerate the Chinese synthesis and UI from an existing run:
 autoresearch synthesize outputs/gui-agent-benchmark-real-world-workflow
 ```
 
+To let Codex act as the manual LLM reviewer for MOC, Gap, and opportunities:
+
+```bash
+autoresearch codex-packet outputs/gui-agent-benchmark-real-world-workflow
+# Ask Codex to read codex_review_packet.json and write codex_review_result.json.
+autoresearch codex-apply \
+  outputs/gui-agent-benchmark-real-world-workflow \
+  outputs/gui-agent-benchmark-real-world-workflow/codex_review_result.json
+```
+
 Optional Semantic Scholar API key:
 
 ```bash
@@ -79,6 +89,9 @@ outputs/<topic-slug>/
   search_result.json
   synthesis.json
   analysis_report.md
+  codex_review_packet.md
+  codex_review_packet.json
+  codex_review_result.template.json
   paper_cards.json
   paper_insights.json
   influences.json
@@ -145,6 +158,9 @@ outputs/<topic-slug>/
 - Chinese synthesis layer that lets Codex stand in for the later LLM step by summarizing Domain
   Profile, source quality, MOC takeaways, Gap evidence chains, limitations, and next actions into
   `analysis_report.md` and `synthesis.json`.
+- Codex-in-the-loop review mode: `codex-packet` exports evidence for manual Codex review, and
+  `codex-apply` imports Codex's structured JSON judgment back into MOC, Gap evidence chains,
+  research opportunities, synthesis, reports, and the dashboard.
 - Weakness report optimized for research discussion: how each weakness emerges, evidence chain,
   counter evidence, why still open, experimentable idea, and verification plan.
 - Static local dashboard UI for source health, paper cards, MOC problem spaces, gap evidence chains,

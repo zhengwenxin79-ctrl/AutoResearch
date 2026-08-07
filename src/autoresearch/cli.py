@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from .codex_review import apply_codex_review_to_output, write_codex_review_packet
 from .dashboard import load_artifacts, write_dashboard
 from .domain_profile import generate_domain_profile, save_domain_profile
 from .pipeline import run_search
@@ -102,6 +103,53 @@ def synthesize(
     path = write_dashboard(artifacts, target_dir)
     console.print(f"[bold green]Done[/bold green] wrote synthesis to {analysis_path}")
     console.print(f"Dashboard: {path}")
+
+
+@app.command("codex-packet")
+def codex_packet(
+    artifact_path: Path = typer.Argument(  # noqa: B008
+        ...,
+        help="Output directory or search_result.json path.",
+    ),
+    output_dir: Path | None = typer.Option(  # noqa: B008
+        None,
+        help="Directory for codex review packet files. Defaults to the artifact directory.",
+    ),
+) -> None:
+    """Export an evidence packet for Codex to act as the manual LLM reviewer."""
+    artifacts = load_artifacts(artifact_path)
+    target_dir = output_dir or (artifact_path if artifact_path.is_dir() else artifact_path.parent)
+    packet_md, packet_json, template_path = write_codex_review_packet(artifacts, target_dir)
+    console.print(f"[bold green]Done[/bold green] wrote Codex review packet to {packet_md}")
+    console.print(f"Packet JSON: {packet_json}")
+    console.print(f"Result template: {template_path}")
+
+
+@app.command("codex-apply")
+def codex_apply(
+    artifact_path: Path = typer.Argument(  # noqa: B008
+        ...,
+        help="Output directory or search_result.json path.",
+    ),
+    result_path: Path = typer.Argument(  # noqa: B008
+        ...,
+        help="Codex review result JSON.",
+    ),
+    output_dir: Path | None = typer.Option(  # noqa: B008
+        None,
+        help="Directory for updated artifacts. Defaults to the artifact directory.",
+    ),
+) -> None:
+    """Apply a Codex manual LLM review result back into the artifacts and dashboard."""
+    artifacts, dashboard_path = apply_codex_review_to_output(
+        artifact_path,
+        result_path,
+        output_dir=output_dir,
+    )
+    console.print("[bold green]Done[/bold green] applied Codex review")
+    console.print(f"Gaps: {len(artifacts.gaps)}")
+    console.print(f"Research opportunities: {len(artifacts.research_opportunities)}")
+    console.print(f"Dashboard: {dashboard_path}")
 
 
 @app.command("profile")
