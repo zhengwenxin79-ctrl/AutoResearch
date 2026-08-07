@@ -5,13 +5,21 @@ from pathlib import Path
 
 from rich.console import Console
 
-from .collectors import search_arxiv, search_crossref, search_openalex, search_pubmed
+from .collectors import (
+    search_arxiv,
+    search_crossref,
+    search_europepmc,
+    search_openalex,
+    search_openreview,
+    search_pubmed,
+)
 from .dedupe import dedupe_papers
 from .enrichment import enrich_ranked_papers
 from .field_mapper import build_field_map
 from .fulltext import fetch_full_texts
 from .gap_finder import find_gaps
 from .moc import build_research_space
+from .open_access import enrich_open_access
 from .query_planner import plan_queries
 from .ranker import rank_papers
 from .reader import build_paper_cards
@@ -26,7 +34,9 @@ COLLECTORS: dict[str, Collector] = {
     "arxiv": search_arxiv,
     "openalex": search_openalex,
     "pubmed": search_pubmed,
+    "europepmc": search_europepmc,
     "crossref": search_crossref,
+    "openreview": search_openreview,
 }
 
 
@@ -38,6 +48,7 @@ def run_search(
     per_query_limit: int = 8,
     full_text_limit: int = 8,
     enrichment_limit: int = 20,
+    open_access_limit: int = 20,
     console: Console | None = None,
 ) -> tuple[SearchArtifacts, Path]:
     console = console or Console()
@@ -75,6 +86,15 @@ def run_search(
             )
         else:
             console.print(f"[yellow]enrich[/yellow] {title[:80]} -> {influence.status}: {influence.error[:120]}")
+    open_access_records = enrich_open_access(ranked, limit=open_access_limit)
+    for title, record in open_access_records.items():
+        if record.status == "ok":
+            console.print(
+                f"[green]oa[/green] {title[:80]} -> "
+                f"open={int(record.is_open_access)}, pdf={int(bool(record.pdf_url))}"
+            )
+        else:
+            console.print(f"[yellow]oa[/yellow] {title[:80]} -> {record.status}: {record.error[:120]}")
     full_texts = fetch_full_texts(ranked, raw_dir=output_dir / "raw", limit=full_text_limit)
     for record in full_texts.values():
         if record.status == "ok":
@@ -93,6 +113,7 @@ def run_search(
         ranked_papers=ranked,
         full_texts=list(full_texts.values()),
         influences=list(influences.values()),
+        open_access_records=list(open_access_records.values()),
         paper_cards=cards,
         paper_insights=paper_insights,
         field_map=field_map,

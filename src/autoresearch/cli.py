@@ -31,6 +31,10 @@ def search(
         20,
         help="Number of top-ranked papers to enrich with Semantic Scholar.",
     ),
+    open_access_limit: int = typer.Option(
+        20,
+        help="Number of top-ranked DOI papers to enrich with Unpaywall open-access links.",
+    ),
 ) -> None:
     """Run Auto Search for a research topic."""
     artifacts, output_dir = run_search(
@@ -40,6 +44,7 @@ def search(
         per_query_limit=per_query_limit,
         full_text_limit=full_text_limit,
         enrichment_limit=enrichment_limit,
+        open_access_limit=open_access_limit,
         console=console,
     )
     console.print()

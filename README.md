@@ -26,15 +26,23 @@ Optional Semantic Scholar API key:
 export SEMANTIC_SCHOLAR_API_KEY="..."
 ```
 
+Optional Unpaywall email for open-access PDF enrichment:
+
+```bash
+export UNPAYWALL_EMAIL="you@example.com"
+```
+
 Outputs are written to:
 
 ```text
 outputs/<topic-slug>/
   raw/
+  source_coverage.md
   search_result.json
   paper_cards.json
   paper_insights.json
   influences.json
+  open_access.json
   field_map.json
   topic_moc.json
   topic_moc.md
@@ -48,7 +56,7 @@ outputs/<topic-slug>/
 ## Current MVP
 
 - Query planning from a high-level research direction.
-- Multi-source paper collection from arXiv, OpenAlex, PubMed, and CrossRef.
+- Multi-source paper collection from arXiv, OpenAlex, PubMed, Europe PMC, CrossRef, and OpenReview.
 - Failure-tolerant source execution with warnings.
 - DOI / PMID / arXiv / OpenAlex / fuzzy-title deduplication.
 - Explainable ranking using lexical relevance, recency, citation count, source reliability, and
@@ -57,6 +65,7 @@ outputs/<topic-slug>/
 - Section splitting for abstract, methods, experiments, results, limitations, and related sections.
 - Semantic Scholar enrichment for citation counts, influential citation counts, references, fields
   of study, venue, and open-access PDF links.
+- Unpaywall enrichment for DOI-based open-access landing pages and PDF links.
 - Paper card extraction from title, abstract, metadata, and section-aware full text when available.
 - Paper Card v2 fields with per-field evidence snippets, extraction status, and coverage tags.
 - Paper Insight Cards that capture problem, method core, evidence, assumption, limitation,
@@ -72,6 +81,7 @@ outputs/<topic-slug>/
   for each gap, with missing evidence and influence signals.
 - Weakness report optimized for research discussion: how each weakness emerges, evidence chain,
   counter evidence, why still open, experimentable idea, and verification plan.
+- Source coverage report for validating search breadth before interpreting preliminary weaknesses.
 - Markdown and JSON artifact export.
 
 ## Design Principle

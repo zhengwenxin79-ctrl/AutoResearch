@@ -55,6 +55,72 @@ def _write_topic_moc(artifacts: SearchArtifacts, output_dir: Path) -> Path | Non
     return path
 
 
+def _write_source_coverage(artifacts: SearchArtifacts, output_dir: Path) -> Path:
+    by_source: dict[str, dict[str, int]] = {}
+    for status in artifacts.source_statuses:
+        bucket = by_source.setdefault(status.source, {"queries": 0, "ok": 0, "failed": 0, "raw": 0})
+        bucket["queries"] += 1
+        bucket["raw"] += status.raw_count
+        if status.status == "ok":
+            bucket["ok"] += 1
+        else:
+            bucket["failed"] += 1
+
+    ranked_contrib: dict[str, int] = {}
+    for ranked in artifacts.ranked_papers:
+        for source in ranked.paper.source_records:
+            ranked_contrib[source] = ranked_contrib.get(source, 0) + 1
+
+    oa_statuses: dict[str, int] = {}
+    for record in artifacts.open_access_records:
+        oa_statuses[record.status] = oa_statuses.get(record.status, 0) + 1
+
+    full_text_statuses: dict[str, int] = {}
+    for record in artifacts.full_texts:
+        full_text_statuses[record.status] = full_text_statuses.get(record.status, 0) + 1
+
+    lines = [
+        f"# Source Coverage: {artifacts.topic}",
+        "",
+        "This report checks whether the search space is broad enough before interpreting weakness/gap outputs.",
+        "",
+        "## Source Execution",
+        "",
+        "| Source | Queries | OK | Failed | Raw Results | Ranked Contributions |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for source, stats in sorted(by_source.items()):
+        lines.append(
+            f"| {source} | {stats['queries']} | {stats['ok']} | {stats['failed']} | "
+            f"{stats['raw']} | {ranked_contrib.get(source, 0)} |"
+        )
+
+    lines.extend(["", "## Full-Text / OA Coverage", ""])
+    lines.append(f"- Full-text statuses: {full_text_statuses or 'not attempted'}")
+    lines.append(f"- Unpaywall statuses: {oa_statuses or 'not attempted'}")
+    lines.append("")
+
+    lines.extend(["## MOC Coverage", ""])
+    if artifacts.topic_moc:
+        lines.append(f"- Paper groups: {len(artifacts.topic_moc.paper_groups)}")
+        for group, titles in artifacts.topic_moc.paper_groups.items():
+            lines.append(f"  - {group}: {len(titles)} papers")
+    else:
+        lines.append("- Topic MOC was not generated.")
+
+    lines.extend(["", "## Warnings", ""])
+    if artifacts.warnings:
+        for warning in artifacts.warnings:
+            lines.append(f"- {warning}")
+    else:
+        lines.append("- No major source execution warnings.")
+    lines.append("")
+
+    path = output_dir / "source_coverage.md"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
 def _write_comparison_matrix(comparison: ComparisonMatrix | None, output_dir: Path) -> Path | None:
     if not comparison:
         return None
@@ -136,6 +202,8 @@ def _write_weakness_report(artifacts: SearchArtifacts, output_dir: Path) -> Path
     lines = [
         f"# Weakness Report: {artifacts.topic}",
         "",
+        "Status: preliminary. Read this after validating `source_coverage.md`, `topic_moc.md`, and `comparison_matrix.md`.",
+        "",
         "This report is optimized for research discussion. It focuses on how weaknesses emerge from paper groups, assumptions, counter-evidence, and experimentable next steps.",
         "",
         "## Paper Groups",
@@ -208,6 +276,7 @@ def _write_weakness_report(artifacts: SearchArtifacts, output_dir: Path) -> Path
 
 
 def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
+    source_coverage_path = _write_source_coverage(artifacts, output_dir)
     topic_moc_path = _write_topic_moc(artifacts, output_dir)
     comparison_path = _write_comparison_matrix(artifacts.comparison_matrix, output_dir)
     weakness_path = _write_weakness_report(artifacts, output_dir)
@@ -224,6 +293,7 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
         lines.append(f"- `{query}`")
 
     lines.extend(["", "## MOC-Style Research Artifacts", ""])
+    lines.append(f"- Source coverage: `{source_coverage_path.name}`")
     if topic_moc_path:
         lines.append(f"- Topic MOC: `{topic_moc_path.name}`")
     if comparison_path:
@@ -276,6 +346,19 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
                 lines.append(f"- **{card.title}**: {influence.status}, error={influence.error or 'n/a'}")
     else:
         lines.append("- Semantic Scholar enrichment was not attempted.")
+
+    lines.extend(["", "## 5b. Open Access Enrichment", ""])
+    if artifacts.open_access_records:
+        for record in artifacts.open_access_records[:15]:
+            if record.status == "ok":
+                lines.append(
+                    f"- **{record.title}**: open_access={record.is_open_access}, "
+                    f"pdf={'yes' if record.pdf_url else 'no'}, landing={'yes' if record.landing_page_url else 'no'}"
+                )
+            else:
+                lines.append(f"- **{record.title}**: {record.status}, error={record.error or 'n/a'}")
+    else:
+        lines.append("- Open access enrichment was not attempted.")
 
     lines.extend(["", "## 6. Paper Cards", ""])
     for card in artifacts.paper_cards[:15]:

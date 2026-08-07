@@ -87,6 +87,18 @@ class PaperInfluence(BaseModel):
     error: str = ""
 
 
+class OpenAccessRecord(BaseModel):
+    title: str
+    doi: str = ""
+    source: str = "unpaywall"
+    status: str = "not_attempted"
+    is_open_access: bool = False
+    landing_page_url: str = ""
+    pdf_url: str = ""
+    evidence: str = ""
+    error: str = ""
+
+
 class PaperCard(BaseModel):
     title: str
     year: int | None = None
@@ -196,6 +208,7 @@ class SearchArtifacts(BaseModel):
     ranked_papers: list[RankedPaper]
     full_texts: list[FullTextRecord] = Field(default_factory=list)
     influences: list[PaperInfluence] = Field(default_factory=list)
+    open_access_records: list[OpenAccessRecord] = Field(default_factory=list)
     paper_cards: list[PaperCard]
     paper_insights: list[PaperInsightCard] = Field(default_factory=list)
     field_map: FieldMap
@@ -218,6 +231,10 @@ class SearchArtifacts(BaseModel):
         )
         (output_dir / "influences.json").write_text(
             "[" + ",\n".join(row.model_dump_json(indent=2) for row in self.influences) + "]\n",
+            encoding="utf-8",
+        )
+        (output_dir / "open_access.json").write_text(
+            "[" + ",\n".join(row.model_dump_json(indent=2) for row in self.open_access_records) + "]\n",
             encoding="utf-8",
         )
         (output_dir / "field_map.json").write_text(

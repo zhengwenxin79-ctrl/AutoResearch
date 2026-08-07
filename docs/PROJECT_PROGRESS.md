@@ -98,9 +98,28 @@
   - comparison rows: `6`
   - generated weaknesses: `3`
   - note: arXiv returned multiple `429`/timeout errors during this run, but OpenAlex/PubMed/CrossRef kept the pipeline running
+- Reordered the next roadmap:
+  - expand information sources first
+  - build and validate the minimum MOC demo
+  - only then interpret weakness/gap outputs
+- Implemented Source Expansion v1:
+  - added Europe PMC as a medical/life-sciences search collector
+  - added OpenReview lightweight search as an AI/ML venue collector
+  - added Unpaywall DOI-based open-access enrichment for landing page and PDF links
+  - added `source_coverage.md` to summarize source execution, ranked contribution, full-text/OA coverage, MOC group coverage, and warnings
+  - marked `weakness_report.md` as preliminary and dependent on source/MOC validation
+- Source Expansion smoke test passed on `medical VLM temporal lesion change analysis` with `--per-query-limit 1` and enrichment/full-text disabled:
+  - source/query executions: `60`
+  - sources represented: `arxiv`, `openalex`, `pubmed`, `europepmc`, `crossref`, `openreview`
+  - raw results: `openalex=10`, `pubmed=8`, `europepmc=10`, `crossref=9`, `openreview=10`, `arxiv=0`
+  - ranked papers: `8`
+  - topic MOC groups: `5`
+  - comparison rows: `5`
+  - note: arXiv still returned `429`/timeout errors and should be handled by source cache/backoff next
 
 ## Next
 
 - Add LLM-backed PaperCard/PaperInsight extraction with strict evidence references.
 - Add source cache/backoff and retry policy for arXiv/OpenAlex/Semantic Scholar rate limits.
+- Add Papers With Code / benchmark archive support as a dataset and benchmark source, not as a primary paper search source.
 - Add LitSearch-style evaluation for search/ranking quality.

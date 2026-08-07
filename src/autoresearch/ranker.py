@@ -95,7 +95,9 @@ TEMPORAL_TERMS = {
 
 SOURCE_WEIGHT = {
     "pubmed": 0.12,
+    "europepmc": 0.11,
     "arxiv": 0.1,
+    "openreview": 0.1,
     "openalex": 0.08,
     "crossref": 0.06,
 }
