@@ -26,7 +26,7 @@ def write_dashboard(artifacts: SearchArtifacts, output_dir: Path) -> Path:
 
 
 HTML_TEMPLATE = """<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -99,6 +99,22 @@ HTML_TEMPLATE = """<!doctype html>
     .metric-label { color: var(--muted); font-size: 12px; text-transform: uppercase; }
     .metric-value { margin-top: 8px; font-size: 28px; font-weight: 750; letter-spacing: 0; }
     .metric-note { margin-top: 2px; color: var(--muted); font-size: 13px; }
+    .llm-strip {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+    .llm-strip strong { display: block; margin-bottom: 3px; }
+    .llm-strip.ok { border-left: 4px solid var(--teal); }
+    .llm-strip.warn { border-left: 4px solid var(--amber); }
+    .llm-strip.bad { border-left: 4px solid var(--red); }
     .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
     .toolbar {
       display: flex;
@@ -127,6 +143,36 @@ HTML_TEMPLATE = """<!doctype html>
       box-shadow: var(--shadow);
     }
     .card + .card { margin-top: 12px; }
+    details.card {
+      display: block;
+      padding: 0;
+      overflow: hidden;
+    }
+    details.card + details.card { margin-top: 12px; }
+    .fold-summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 16px;
+      color: var(--text);
+      list-style: none;
+    }
+    .fold-summary::-webkit-details-marker { display: none; }
+    .fold-summary::after {
+      content: "展开";
+      color: var(--blue);
+      font-size: 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 10px;
+      white-space: nowrap;
+    }
+    details[open] > .fold-summary::after { content: "收起"; }
+    .fold-content {
+      border-top: 1px solid var(--line);
+      padding: 14px 16px 16px;
+    }
     .card-header {
       display: flex;
       justify-content: space-between;
@@ -204,6 +250,7 @@ HTML_TEMPLATE = """<!doctype html>
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .toolbar { align-items: stretch; flex-direction: column; }
       .kv { grid-template-columns: 1fr; }
+      .llm-strip { grid-template-columns: 1fr; }
     }
     @media (max-width: 560px) {
       .shell { padding: 16px; }
@@ -222,14 +269,15 @@ HTML_TEMPLATE = """<!doctype html>
         <p class="subtle" id="generatedAt"></p>
       </div>
       <div class="actions">
-        <a class="link-button" href="report.md">打开报告</a>
-        <a class="link-button" href="source_coverage.md">信息源覆盖</a>
-        <a class="link-button" href="gap_evidence_chains.md">Gap 证据链</a>
-        <a class="link-button" href="research_opportunities.md">研究机会</a>
+        <button class="link-button" data-tab-go="overview" type="button">信息源覆盖</button>
+        <button class="link-button" data-tab-go="papers" type="button">论文卡片</button>
+        <button class="link-button" data-tab-go="gaps" type="button">Gap 证据链</button>
+        <button class="link-button" data-tab-go="opportunities" type="button">研究机会</button>
       </div>
     </header>
 
     <section class="summary-grid" id="summaryGrid"></section>
+    <section class="llm-strip" id="llmStrip"></section>
 
     <nav class="tabs" aria-label="看板标签页">
       <button class="tab-button active" data-tab="overview">总览</button>
@@ -466,6 +514,15 @@ HTML_TEMPLATE = """<!doctype html>
       return map[value] || value || "不明确";
     };
 
+    const translatedLlmError = (error) => {
+      const text = String(error || "");
+      if (!text) return "";
+      if (text.includes("429")) return "接口返回 429 Too Many Requests：当前 Key 可能被限流或额度不足，稍后重试或更换可用模型/Key。";
+      if (text.includes("AUTORESEARCH_LLM_MODEL")) return "未配置模型名，请设置 AUTORESEARCH_LLM_MODEL 或传入 --llm-model。";
+      if (text.includes("AUTORESEARCH_LLM_API_KEY") || text.includes("OPENAI_API_KEY")) return "未配置 API Key，请设置 AUTORESEARCH_LLM_API_KEY 或 OPENAI_API_KEY。";
+      return text.split("\\n")[0];
+    };
+
     const sourceStats = () => {
       const stats = {};
       for (const row of data.source_statuses || []) {
@@ -514,6 +571,33 @@ HTML_TEMPLATE = """<!doctype html>
       ].join("");
     };
 
+    const renderLlmStrip = () => {
+      const records = data.llm_extractions || [];
+      const counts = records.reduce((acc, row) => {
+        acc[row.status || "unknown"] = (acc[row.status || "unknown"] || 0) + 1;
+        return acc;
+      }, {});
+      const updatedFields = [...new Set(records.flatMap(row => row.fields_updated || []))];
+      const models = [...new Set(records.map(row => row.model).filter(Boolean))];
+      const stripState = !records.length ? "warn" : counts.failed ? "bad" : counts.skipped ? "warn" : "ok";
+      const statusText = records.length
+        ? `已尝试 ${records.length} 篇：成功 ${counts.ok || 0}，无更新 ${counts.no_update || 0}，跳过 ${counts.skipped || 0}，失败 ${counts.failed || 0}`
+        : "本次未执行 LLM 抽取";
+      const details = records.length
+        ? `模型：${models.length ? models.join(", ") : "未记录"}；更新字段：${updatedFields.length ? updatedFields.join(", ") : "无"}`
+        : "可以通过 --llm-card-limit 开启；缺少模型或 Key 时会在这里显示原因。";
+      const firstError = translatedLlmError(records.find(row => row.error)?.error);
+      const container = document.getElementById("llmStrip");
+      container.className = `llm-strip ${stripState}`;
+      container.innerHTML = `
+        <div>
+          <strong>LLM 抽取概况：${esc(statusText)}</strong>
+          <span class="subtle">${esc(details)}${firstError ? `；失败原因：${esc(firstError)}` : ""}</span>
+        </div>
+        <button class="link-button" data-tab-go="overview" type="button">查看抽取明细</button>
+      `;
+    };
+
     const renderOverview = () => {
       const readiness = data.source_readiness || {};
       const sourceRows = sourceStats().map(row => `
@@ -533,6 +617,7 @@ HTML_TEMPLATE = """<!doctype html>
           <td><span class="badge ${badgeClass(row.status)}">${esc(statusLabel(row.status))}</span></td>
           <td>${esc(row.model || "n/a")}</td>
           <td>${join(row.fields_updated, "无")}</td>
+          <td>${esc(translatedLlmError(row.error) || "无")}</td>
         </tr>
       `).join("");
       document.getElementById("overview").innerHTML = `
@@ -564,7 +649,7 @@ HTML_TEMPLATE = """<!doctype html>
               </dl>
             </article>
             <h2 style="margin-top:16px;">LLM 抽取状态</h2>
-            ${llmRows ? `<table><thead><tr><th>论文</th><th>状态</th><th>模型</th><th>更新字段</th></tr></thead><tbody>${llmRows}</tbody></table>` : `<div class="empty">本次未执行 LLM 抽取。</div>`}
+            ${llmRows ? `<table><thead><tr><th>论文</th><th>状态</th><th>模型</th><th>更新字段</th><th>错误/提示</th></tr></thead><tbody>${llmRows}</tbody></table>` : `<div class="empty">本次未执行 LLM 抽取。</div>`}
           </section>
         </div>
       `;
@@ -581,15 +666,19 @@ HTML_TEMPLATE = """<!doctype html>
     const renderPapers = () => {
       const papers = (data.paper_cards || []).filter(paperMatches);
       const cards = papers.map((paper, idx) => `
-        <article class="card">
-          <div class="card-header">
+        <details class="card fold-card">
+          <summary class="fold-summary">
             <div>
               <h3>${idx + 1}. ${esc(paper.title)}</h3>
-              <p class="subtle">${esc(paper.year || "n.d.")} ${paper.venue ? `| ${esc(paper.venue)}` : ""}</p>
+              <p class="subtle">${esc(zh(paper.problem || paper.task || "未明确"))}</p>
+              <div class="badge-row">${(paper.coverage_tags || []).slice(0, 6).map(tag => `<span class="badge">${esc(zh(tag))}</span>`).join("")}</div>
             </div>
-            ${paper.url ? `<a class="link-button" href="${esc(paper.url)}">打开</a>` : ""}
+          </summary>
+          <div class="fold-content">
+          <div class="card-header">
+            <p class="subtle">${esc(paper.year || "n.d.")} ${paper.venue ? `| ${esc(paper.venue)}` : ""}</p>
+            ${paper.url ? `<a class="link-button" href="${esc(paper.url)}">打开原文</a>` : ""}
           </div>
-          <div class="badge-row">${(paper.coverage_tags || []).slice(0, 8).map(tag => `<span class="badge">${esc(zh(tag))}</span>`).join("")}</div>
           <dl class="kv">
             <dt>问题空间</dt><dd>${esc(zh(paper.problem))}</dd>
             <dt>任务</dt><dd>${esc(zh(paper.task))}</dd>
@@ -606,7 +695,8 @@ HTML_TEMPLATE = """<!doctype html>
               ${(paper.evidence_snippets || []).map(snippet => `<li><strong>${esc(snippet.claim)}</strong><br>${esc(snippet.snippet)}</li>`).join("") || "<li>暂无证据片段。</li>"}
             </ol>
           </details>
-        </article>
+          </div>
+        </details>
       `).join("");
       document.getElementById("papers").innerHTML = `
         <div class="toolbar">
@@ -632,11 +722,17 @@ HTML_TEMPLATE = """<!doctype html>
             <h2>问题空间 MOC</h2>
             <p class="subtle">基于论文关系构建的 ${groups.length} 个问题空间</p>
           </div>
-          <a class="link-button" href="topic_moc.md">打开 Markdown</a>
         </div>
         <div class="grid-2">
           ${groups.map(group => `
-            <article class="card">
+            <details class="card fold-card">
+              <summary class="fold-summary">
+                <div>
+                  <h3>${esc(zh(group.name))}</h3>
+                  <p class="subtle">${esc(zh(group.problem_space))}</p>
+                </div>
+              </summary>
+              <div class="fold-content">
               <div class="card-header">
                 <h3>${esc(zh(group.name))}</h3>
                 <span class="badge teal">${esc(zh(group.problem_space))}</span>
@@ -649,7 +745,8 @@ HTML_TEMPLATE = """<!doctype html>
                 <dt>开放问题</dt><dd>${join(group.open_questions)}</dd>
                 <dt>可做实验</dt><dd>${join(group.possible_experiments)}</dd>
               </dl>
-            </article>
+              </div>
+            </details>
           `).join("") || `<div class="empty">本次未生成 MOC 问题空间。</div>`}
         </div>
       `;
@@ -663,10 +760,16 @@ HTML_TEMPLATE = """<!doctype html>
             <h2>Gap 证据链</h2>
             <p class="subtle">把支持证据、反证和验证计划放在一起看。</p>
           </div>
-          <a class="link-button" href="gap_evidence_chains.md">打开 Markdown</a>
         </div>
         ${gaps.map((gap, idx) => `
-          <article class="card">
+          <details class="card fold-card" ${idx === 0 ? "open" : ""}>
+            <summary class="fold-summary">
+              <div>
+                <h3>Gap ${idx + 1}: ${esc(zh(gap.gap))}</h3>
+                <p class="subtle">支持 ${gap.support_count}/${gap.total_papers}；反证 ${gap.counter_count}/${gap.total_papers}；置信度 ${esc(gap.confidence)}</p>
+              </div>
+            </summary>
+            <div class="fold-content">
             <div class="card-header">
               <div>
                 <h3>Gap ${idx + 1}: ${esc(zh(gap.gap))}</h3>
@@ -693,7 +796,8 @@ HTML_TEMPLATE = """<!doctype html>
                 `).join("") || "<li>暂无证据链。</li>"}
               </ol>
             </details>
-          </article>
+            </div>
+          </details>
         `).join("") || `<div class="empty">本次未生成 Gap。</div>`}
       `;
     };
@@ -706,11 +810,17 @@ HTML_TEMPLATE = """<!doctype html>
             <h2>研究机会</h2>
             <p class="subtle">每个想法都绑定到前面的 Gap 证据链。</p>
           </div>
-          <a class="link-button" href="research_opportunities.md">打开 Markdown</a>
         </div>
         <div class="grid-2">
           ${opportunities.map((item, idx) => `
-            <article class="card">
+            <details class="card fold-card" ${idx === 0 ? "open" : ""}>
+              <summary class="fold-summary">
+                <div>
+                  <h3>机会 ${idx + 1}</h3>
+                  <p class="subtle">${esc(zh(item.research_question || item.gap))}</p>
+                </div>
+              </summary>
+              <div class="fold-content">
               <div class="card-header">
                 <h3>机会 ${idx + 1}</h3>
                 <span class="badge teal">证据支撑</span>
@@ -722,12 +832,13 @@ HTML_TEMPLATE = """<!doctype html>
                 <dt>方法设想</dt><dd>${esc(zh(item.proposed_method))}</dd>
                 <dt>所需数据</dt><dd>${esc(zh(item.required_data))}</dd>
                 <dt>评估方案</dt><dd>${join(item.evaluation_protocol)}</dd>
-                <dt>Baselines</dt><dd>${join(item.baselines)}</dd>
-                <dt>Ablations</dt><dd>${join(item.ablations)}</dd>
+                <dt>对比基线</dt><dd>${join(item.baselines)}</dd>
+                <dt>消融实验</dt><dd>${join(item.ablations)}</dd>
                 <dt>风险</dt><dd>${join(item.risks)}</dd>
                 <dt>证据引用</dt><dd>${join(item.evidence_refs)}</dd>
               </dl>
-            </article>
+              </div>
+            </details>
           `).join("") || `<div class="empty">本次未生成有证据支撑的研究机会。</div>`}
         </div>
       `;
@@ -735,6 +846,7 @@ HTML_TEMPLATE = """<!doctype html>
 
     const renderAll = () => {
       renderSummary();
+      renderLlmStrip();
       renderOverview();
       renderPapers();
       renderMoc();
@@ -742,16 +854,30 @@ HTML_TEMPLATE = """<!doctype html>
       renderOpportunities();
     };
 
+    const setActiveTab = (tab) => {
+      document.querySelectorAll(".tab-button").forEach(item => {
+        item.classList.toggle("active", item.dataset.tab === tab);
+      });
+      document.querySelectorAll(".section").forEach(item => {
+        item.classList.toggle("active", item.id === tab);
+      });
+      window.location.hash = tab;
+    };
+
     document.querySelectorAll(".tab-button").forEach(button => {
       button.addEventListener("click", () => {
-        document.querySelectorAll(".tab-button").forEach(item => item.classList.remove("active"));
-        document.querySelectorAll(".section").forEach(item => item.classList.remove("active"));
-        button.classList.add("active");
-        document.getElementById(button.dataset.tab).classList.add("active");
+        setActiveTab(button.dataset.tab);
       });
     });
 
     renderAll();
+    document.querySelectorAll("[data-tab-go]").forEach(button => {
+      button.addEventListener("click", () => setActiveTab(button.dataset.tabGo));
+    });
+    const initialTab = window.location.hash.replace("#", "");
+    if (initialTab && document.getElementById(initialTab)) {
+      setActiveTab(initialTab);
+    }
   </script>
 </body>
 </html>

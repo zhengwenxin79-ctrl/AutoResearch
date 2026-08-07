@@ -2,10 +2,10 @@
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+.cache/
 *.pyc
 outputs/
 .env
 dist/
 build/
 *.egg-info/
-

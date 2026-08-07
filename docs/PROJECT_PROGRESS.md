@@ -181,6 +181,26 @@
     items, baselines, ablations, and risks
   - preserved original paper titles and evidence snippets to avoid distorting source content
   - regenerated `outputs/medical-vlm-temporal-lesion-change-analysis/dashboard.html`
+- Improved Dashboard interaction for the research-review demo:
+  - top actions now navigate within the Chinese dashboard instead of opening Markdown exports
+  - Paper Cards, MOC problem spaces, Gap evidence chains, and Research Opportunities are expandable
+    panels
+  - added a top LLM extraction strip and a detailed LLM extraction table in Overview
+  - added Chinese error hints for skipped or failed LLM extraction states
+  - changed dashboard HTML language metadata to `zh-CN`
+  - ignored repo-local `.cache/` search cache files
+- Reran `medical VLM temporal lesion change analysis` with LLM extraction enabled for the top `3`
+  paper cards:
+  - ranked papers: `8`
+  - generated gaps: `3`
+  - research opportunities: `3`
+  - source readiness: `ready_for_preliminary_gap_analysis`
+  - source coverage: arXiv `1 ok / 1 failed / 8 skipped`, CrossRef `0 ok / 1 failed / 9 skipped`,
+    OpenAlex `10 ok`, PubMed `10 ok`, Europe PMC `10 ok`, OpenReview `10 ok`
+  - LLM extraction model: `gpt-4o-mini`
+  - LLM extraction result: `3 failed`, `0 updated`
+  - failure reason: OpenAI-compatible endpoint returned `429 Too Many Requests`
+  - regenerated `outputs/medical-vlm-temporal-lesion-change-analysis/dashboard.html`
 
 ## Next
 

@@ -116,6 +116,9 @@ outputs/<topic-slug>/
   and research opportunities.
 - Dashboard UI labels and rule-generated research signals are localized in Chinese while preserving
   original paper titles and evidence snippets.
+- Dashboard top actions switch between Chinese in-page tabs instead of jumping to Markdown exports.
+- Paper cards, MOC problem spaces, Gap evidence chains, and research opportunities are expandable
+  detail panels, with an LLM extraction summary shown at the top of the page.
 - Source coverage report and readiness gate for validating search breadth before interpreting
   preliminary weaknesses.
 - Markdown and JSON artifact export.
