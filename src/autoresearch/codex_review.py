@@ -151,6 +151,9 @@ def _packet_payload(artifacts: SearchArtifacts) -> dict[str, Any]:
                 "missing_capability": card.missing_capability,
                 "relation_to_topic": card.relation_to_topic,
                 "gap_hint": card.gap_hint,
+                "evidence_tier": card.evidence_tier,
+                "evidence_tier_score_delta": card.evidence_tier_score_delta,
+                "evidence_tier_reasons": card.evidence_tier_reasons,
                 "coverage_tags": card.coverage_tags,
                 "evidence_snippets": [
                     snippet.model_dump(mode="json") for snippet in card.evidence_snippets[:2]

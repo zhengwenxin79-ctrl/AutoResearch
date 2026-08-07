@@ -282,14 +282,31 @@
   - added tests for profile policy loading, legacy profile compatibility, and fixture tier judgments
   - validation passed: `.venv/bin/pytest` -> 28 passed; `.venv/bin/ruff check .` -> all checks passed
 
+## 2026-08-08
+
+- Integrated Profile-Aware Evidence Tier scoring into the real search path:
+  - extended `RankedPaper` and `PaperCard` with `evidence_tier`,
+    `evidence_tier_score_delta`, and `evidence_tier_reasons`
+  - updated `rank_papers(..., profile=None)` so legacy calls keep old behavior while profile-aware
+    calls add `score_evidence_tier` deltas and reasons
+  - updated `pipeline.py` to pass the active `domain_profile` into the ranker
+  - propagated evidence tiers from ranked papers into paper cards and Codex Review packets
+  - added ranker tests for legacy compatibility, GUI Agent medical-noise downranking, Medical VLM
+    GUI-noise downranking, and Paper Card tier propagation
+  - validation passed: `.venv/bin/pytest` -> 32 passed; `.venv/bin/ruff check .` -> all checks passed
+- Ran a small GUI Agent demo with profile-aware ranking:
+  - command used `--profile gui-agent --limit 12 --per-query-limit 3 --full-text-limit 0`
+  - output: `.cache/profile-ranker-demo/gui-agent-benchmark-real-world-workflow`
+  - top ranked papers were all labeled `core`
+  - `MobileUse`, `GUI-ReWalk`, and `LongHorizonUI` appeared in the ranked set with positive
+    evidence-tier deltas
+  - OpenAlex returned `429 Too Many Requests` and was skipped after the existing failure threshold
+  - Codex Review Packet generation succeeded and includes paper-level evidence tiers
+
 ## Next
 
-- Review the new evidence-tier judgments, then connect `score_evidence_tier` to `rank_papers`
-  with `profile=None` backward compatibility.
-- After ranker integration, pass the profile into `pipeline.py` ranking and re-run the GUI Agent demo
-  to measure whether medical / clinical drift drops.
-- Add Dashboard and Codex Review packet display for `core`, `adjacent`, `noise`, and `unknown`
-  evidence tiers.
+- Add Dashboard display for `core`, `adjacent`, `noise`, and `unknown` evidence tiers.
+- Add source-quality reporting: source -> core / adjacent / noise contribution counts.
 - Use Codex Manual LLM Review v1 on the GUI Agent demo as the standard review loop.
 - Add Codex-reviewed PaperInsight and MOC refinement with strict evidence references.
 - Add review/evaluation fixtures to compare rule-generated vs Codex-reviewed extraction quality.

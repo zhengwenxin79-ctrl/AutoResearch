@@ -569,6 +569,9 @@ def build_paper_cards(
                 gap_hint=gap_hint,
                 relevance_score=row.relevance_score,
                 score_reasons=row.score_reasons,
+                evidence_tier=row.evidence_tier,
+                evidence_tier_score_delta=row.evidence_tier_score_delta,
+                evidence_tier_reasons=row.evidence_tier_reasons,
                 evidence_snippets=primary_evidence,
                 field_evidence=field_evidence,
                 extraction_status={

@@ -85,6 +85,9 @@ class RankedPaper(BaseModel):
     paper: PaperRecord
     relevance_score: float
     score_reasons: list[str] = Field(default_factory=list)
+    evidence_tier: str = "unknown"
+    evidence_tier_score_delta: float = 0.0
+    evidence_tier_reasons: list[str] = Field(default_factory=list)
 
 
 class EvidenceSnippet(BaseModel):
@@ -180,6 +183,9 @@ class PaperCard(BaseModel):
     gap_hint: str = ""
     relevance_score: float = 0.0
     score_reasons: list[str] = Field(default_factory=list)
+    evidence_tier: str = "unknown"
+    evidence_tier_score_delta: float = 0.0
+    evidence_tier_reasons: list[str] = Field(default_factory=list)
     evidence_snippets: list[EvidenceSnippet] = Field(default_factory=list)
     field_evidence: dict[str, EvidenceSnippet] = Field(default_factory=dict)
     extraction_status: dict[str, str] = Field(default_factory=dict)

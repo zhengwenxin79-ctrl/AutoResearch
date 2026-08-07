@@ -3,7 +3,8 @@ from __future__ import annotations
 import math
 from collections import Counter
 
-from .schema import PaperRecord, QueryPlan, RankedPaper
+from .relevance import score_evidence_tier
+from .schema import DomainProfile, PaperRecord, QueryPlan, RankedPaper
 from .utils import current_year, tokens
 
 SIGNAL_TERMS = {
@@ -107,7 +108,12 @@ def _paper_text(paper: PaperRecord) -> str:
     return f"{paper.title} {paper.abstract} {paper.venue} {paper.url}"
 
 
-def rank_papers(papers: list[PaperRecord], plan: QueryPlan, limit: int) -> list[RankedPaper]:
+def rank_papers(
+    papers: list[PaperRecord],
+    plan: QueryPlan,
+    limit: int,
+    profile: DomainProfile | None = None,
+) -> list[RankedPaper]:
     query_terms = set(tokens(" ".join([plan.topic, *plan.queries]))) - STOPWORDS
     topic_terms = set(tokens(plan.topic))
     wants_medical = bool(topic_terms & MEDICAL_TERMS)
@@ -174,5 +180,25 @@ def rank_papers(papers: list[PaperRecord], plan: QueryPlan, limit: int) -> list[
         if paper.year:
             reasons.append(f"year={paper.year}")
         reasons.append("sources=" + ", ".join(paper.source_records))
-        ranked.append(RankedPaper(paper=paper, relevance_score=round(score, 4), score_reasons=reasons))
+        evidence_tier = "unknown"
+        evidence_tier_score_delta = 0.0
+        evidence_tier_reasons: list[str] = []
+        if profile is not None:
+            tier_score = score_evidence_tier(paper, profile)
+            evidence_tier = tier_score.tier
+            evidence_tier_score_delta = tier_score.score_delta
+            evidence_tier_reasons = tier_score.reasons
+            score = max(0.0, min(1.0, score + tier_score.score_delta))
+            reasons.append(f"evidence_tier={tier_score.tier}")
+            reasons.extend(tier_score.reasons)
+        ranked.append(
+            RankedPaper(
+                paper=paper,
+                relevance_score=round(score, 4),
+                score_reasons=reasons,
+                evidence_tier=evidence_tier,
+                evidence_tier_score_delta=evidence_tier_score_delta,
+                evidence_tier_reasons=evidence_tier_reasons,
+            )
+        )
     return sorted(ranked, key=lambda row: row.relevance_score, reverse=True)[:limit]

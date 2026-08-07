@@ -45,6 +45,9 @@ def _artifact() -> SearchArtifacts:
                     "url": "https://example.com/recovery",
                 },
                 relevance_score=0.9,
+                evidence_tier="core",
+                evidence_tier_score_delta=0.18,
+                evidence_tier_reasons=["matched core keyword: GUI agent"],
             )
         ],
         source_readiness=SourceReadiness(status="needs_more_evidence"),
@@ -53,6 +56,9 @@ def _artifact() -> SearchArtifacts:
                 title="GUI Recovery Benchmark",
                 url="https://example.com/recovery",
                 problem="failure recovery and self-correction",
+                evidence_tier="core",
+                evidence_tier_score_delta=0.18,
+                evidence_tier_reasons=["matched core keyword: GUI agent"],
                 evidence_snippets=[snippet],
             )
         ],
@@ -127,6 +133,7 @@ def test_write_codex_review_packet(tmp_path):
     assert "审查问题清单" in packet_text
     assert "core evidence" in packet_text
     assert "GUI Recovery Benchmark" in packet_json.read_text(encoding="utf-8")
+    assert '"evidence_tier": "core"' in packet_json.read_text(encoding="utf-8")
     assert "codex_manual_llm_pass" in template_path.read_text(encoding="utf-8")
 
 

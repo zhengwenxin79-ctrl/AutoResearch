@@ -101,7 +101,7 @@ def run_search(
                 console.print(f"[yellow]warn[/yellow] {message}")
 
     deduped = dedupe_papers([paper for paper in papers if paper.title])
-    ranked = rank_papers(deduped, plan, limit=limit)
+    ranked = rank_papers(deduped, plan, limit=limit, profile=domain_profile)
     output_dir = output_root / slugify(topic)
     influences = enrich_ranked_papers(ranked, limit=enrichment_limit)
     for title, influence in influences.items():

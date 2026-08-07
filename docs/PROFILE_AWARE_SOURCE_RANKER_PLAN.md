@@ -64,16 +64,18 @@ Search -> Paper Cards -> MOC -> Gap Evidence -> Codex Review -> Dashboard
 
 ## 执行状态
 
-截至 2026-08-07，前三个小步已经完成：
+截至 2026-08-08，前五个小步已经完成：
 
 ```text
 Step 1: relevance fixtures -> done
 Step 2: profile policy schema -> done
 Step 3: standalone evidence tier scoring -> done
+Step 4: ranker profile-aware integration -> done
+Step 5: pipeline profile-aware ranker integration -> done
 ```
 
-当前还没有把 evidence tier 接入 `rank_papers` / `pipeline.py` / Dashboard。
-这是有意保留的安全边界：先确认判断函数符合直觉，再让它影响排序和界面。
+当前已经把 evidence tier 接入 `rank_papers`、`pipeline.py`、`PaperCard` 和 Codex Review Packet。
+Dashboard 还没有做大 UI 改造；下一步只需要把已有字段展示出来。
 
 ## 设计原则
 
