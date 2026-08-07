@@ -13,6 +13,7 @@ from .collectors import (
     search_openreview,
     search_pubmed,
 )
+from .dashboard import write_dashboard
 from .dedupe import dedupe_papers
 from .enrichment import enrich_ranked_papers
 from .field_mapper import build_field_map
@@ -160,4 +161,5 @@ def run_search(
     )
     artifacts.write_json(output_dir)
     write_report(artifacts, output_dir)
+    write_dashboard(artifacts, output_dir)
     return artifacts, output_dir

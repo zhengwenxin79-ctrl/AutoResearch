@@ -20,6 +20,12 @@ pip install -e .
 autoresearch search "medical VLM temporal lesion change analysis" --limit 20 --full-text-limit 6
 ```
 
+To regenerate the UI from an existing run:
+
+```bash
+autoresearch dashboard outputs/medical-vlm-temporal-lesion-change-analysis
+```
+
 Optional Semantic Scholar API key:
 
 ```bash
@@ -47,6 +53,7 @@ Outputs are written to:
 
 ```text
 outputs/<topic-slug>/
+  dashboard.html
   raw/
   source_coverage.md
   search_result.json
@@ -105,6 +112,8 @@ outputs/<topic-slug>/
 - Gap evidence chain Markdown export plus evidence-backed research opportunity generation.
 - Weakness report optimized for research discussion: how each weakness emerges, evidence chain,
   counter evidence, why still open, experimentable idea, and verification plan.
+- Static local dashboard UI for source health, paper cards, MOC problem spaces, gap evidence chains,
+  and research opportunities.
 - Source coverage report and readiness gate for validating search breadth before interpreting
   preliminary weaknesses.
 - Markdown and JSON artifact export.

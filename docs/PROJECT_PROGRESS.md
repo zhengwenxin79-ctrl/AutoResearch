@@ -155,6 +155,24 @@
   - no external LLM request was made
   - source readiness correctly reported `needs_more_evidence` when the demo was limited to `5`
     ranked papers, validating the readiness gate behavior
+- Implemented static Dashboard UI:
+  - search runs now automatically write `dashboard.html`
+  - added `autoresearch dashboard <output-dir-or-search_result.json>` for regenerating the UI from
+    existing artifacts
+  - Dashboard tabs: Overview, Papers, MOC, Gaps, Opportunities
+  - Overview shows source health, readiness gate, and LLM extraction status
+  - Papers view supports filtering and expands evidence snippets
+  - MOC view shows problem spaces, shared assumptions, missing capabilities, open questions, and
+    possible experiments
+  - Gaps view shows confidence, support/counter coverage, and evidence chains
+  - Opportunities view shows evidence-bound research question, method, evaluation, baselines,
+    ablations, and risks
+- Dashboard demo regenerated for `medical VLM temporal lesion change analysis`:
+  - ranked papers: `8`
+  - generated gaps: `3`
+  - source readiness: `ready_for_preliminary_gap_analysis`
+  - arXiv: `1 failed`, `9 skipped`
+  - dashboard path: `outputs/medical-vlm-temporal-lesion-change-analysis/dashboard.html`
 
 ## Next
 

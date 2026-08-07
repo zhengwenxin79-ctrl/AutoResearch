@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from .dashboard import load_artifacts, write_dashboard
 from .pipeline import run_search
 
 app = typer.Typer(help="AutoResearch command line interface.", no_args_is_help=True)
@@ -72,6 +73,27 @@ def search(
     console.print(f"Papers: {len(artifacts.ranked_papers)}")
     console.print(f"Gaps: {len(artifacts.gaps)}")
     console.print(f"Report: {output_dir / 'report.md'}")
+    console.print(f"Dashboard: {output_dir / 'dashboard.html'}")
+
+
+@app.command()
+def dashboard(
+    artifact_path: Path = typer.Argument(  # noqa: B008
+        ...,
+        help="Output directory or search_result.json path.",
+    ),
+    output_dir: Path | None = typer.Option(  # noqa: B008
+        None,
+        help="Directory for dashboard.html. Defaults to the artifact directory.",
+    ),
+) -> None:
+    """Generate a static HTML dashboard from existing search artifacts."""
+    artifacts = load_artifacts(artifact_path)
+    target_dir = output_dir
+    if target_dir is None:
+        target_dir = artifact_path if artifact_path.is_dir() else artifact_path.parent
+    path = write_dashboard(artifacts, target_dir)
+    console.print(f"[bold green]Done[/bold green] wrote dashboard to {path}")
 
 
 if __name__ == "__main__":
