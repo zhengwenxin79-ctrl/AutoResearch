@@ -108,6 +108,21 @@ class PaperCard(BaseModel):
     influence: PaperInfluence | None = None
 
 
+class PaperInsightCard(BaseModel):
+    title: str
+    url: str = ""
+    group: str = ""
+    problem: str = ""
+    method_core: str = ""
+    evidence: str = ""
+    assumption: str = ""
+    limitation: str = ""
+    relation_to_others: list[str] = Field(default_factory=list)
+    inspiration: str = ""
+    experimentable_gap: str = ""
+    evidence_snippet: EvidenceSnippet | None = None
+
+
 class FieldMap(BaseModel):
     task_clusters: dict[str, list[str]] = Field(default_factory=dict)
     method_clusters: dict[str, list[str]] = Field(default_factory=dict)
@@ -115,6 +130,30 @@ class FieldMap(BaseModel):
     metrics: dict[str, list[str]] = Field(default_factory=dict)
     model_types: dict[str, list[str]] = Field(default_factory=dict)
     coverage_notes: list[str] = Field(default_factory=list)
+
+
+class TopicMOC(BaseModel):
+    topic: str
+    core_concepts: list[str] = Field(default_factory=list)
+    paper_groups: dict[str, list[str]] = Field(default_factory=dict)
+    common_method_patterns: list[str] = Field(default_factory=list)
+    shared_assumptions: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    related_themes: list[str] = Field(default_factory=list)
+
+
+class ComparisonRow(BaseModel):
+    group: str
+    representative_papers: list[str] = Field(default_factory=list)
+    solves: list[str] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    benchmark_or_metrics: list[str] = Field(default_factory=list)
+    evidence: list[EvidenceSnippet] = Field(default_factory=list)
+
+
+class ComparisonMatrix(BaseModel):
+    rows: list[ComparisonRow] = Field(default_factory=list)
 
 
 class GapPaperJudgment(BaseModel):
@@ -158,7 +197,10 @@ class SearchArtifacts(BaseModel):
     full_texts: list[FullTextRecord] = Field(default_factory=list)
     influences: list[PaperInfluence] = Field(default_factory=list)
     paper_cards: list[PaperCard]
+    paper_insights: list[PaperInsightCard] = Field(default_factory=list)
     field_map: FieldMap
+    topic_moc: TopicMOC | None = None
+    comparison_matrix: ComparisonMatrix | None = None
     gaps: list[GapEvidence]
     warnings: list[str] = Field(default_factory=list)
 
@@ -170,6 +212,10 @@ class SearchArtifacts(BaseModel):
         (output_dir / "paper_cards.json").write_text(
             self.model_dump_json(include={"paper_cards"}, indent=2), encoding="utf-8"
         )
+        (output_dir / "paper_insights.json").write_text(
+            "[" + ",\n".join(row.model_dump_json(indent=2) for row in self.paper_insights) + "]\n",
+            encoding="utf-8",
+        )
         (output_dir / "influences.json").write_text(
             "[" + ",\n".join(row.model_dump_json(indent=2) for row in self.influences) + "]\n",
             encoding="utf-8",
@@ -177,6 +223,14 @@ class SearchArtifacts(BaseModel):
         (output_dir / "field_map.json").write_text(
             self.field_map.model_dump_json(indent=2), encoding="utf-8"
         )
+        if self.topic_moc:
+            (output_dir / "topic_moc.json").write_text(
+                self.topic_moc.model_dump_json(indent=2), encoding="utf-8"
+            )
+        if self.comparison_matrix:
+            (output_dir / "comparison_matrix.json").write_text(
+                self.comparison_matrix.model_dump_json(indent=2), encoding="utf-8"
+            )
         (output_dir / "gaps.json").write_text(
             "[" + ",\n".join(gap.model_dump_json(indent=2) for gap in self.gaps) + "]\n",
             encoding="utf-8",

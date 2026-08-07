@@ -2,10 +2,216 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .schema import SearchArtifacts
+from .schema import ComparisonMatrix, GapEvidence, SearchArtifacts, TopicMOC
+
+
+def _escape_cell(value: str) -> str:
+    return value.replace("|", "\\|").replace("\n", " ")
+
+
+def _join(values: list[str], fallback: str = "not explicit") -> str:
+    return "; ".join(values) if values else fallback
+
+
+def _write_topic_moc(artifacts: SearchArtifacts, output_dir: Path) -> Path | None:
+    moc = artifacts.topic_moc
+    if not moc:
+        return None
+    lines = [
+        f"# Topic MOC: {moc.topic}",
+        "",
+        "## Core Concepts",
+        "",
+    ]
+    for concept in moc.core_concepts:
+        lines.append(f"- {concept}")
+
+    lines.extend(["", "## Paper Groups", ""])
+    for group, titles in moc.paper_groups.items():
+        lines.append(f"### {group}")
+        for title in titles[:10]:
+            lines.append(f"- {title}")
+        lines.append("")
+
+    lines.extend(["## Common Method Patterns", ""])
+    for pattern in moc.common_method_patterns:
+        lines.append(f"- {pattern}")
+
+    lines.extend(["", "## Shared Assumptions", ""])
+    for assumption in moc.shared_assumptions:
+        lines.append(f"- {assumption}")
+
+    lines.extend(["", "## Open Questions", ""])
+    for question in moc.open_questions:
+        lines.append(f"- {question}")
+
+    lines.extend(["", "## Related Themes", ""])
+    for theme in moc.related_themes:
+        lines.append(f"- {theme}")
+    lines.append("")
+
+    path = output_dir / "topic_moc.md"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def _write_comparison_matrix(comparison: ComparisonMatrix | None, output_dir: Path) -> Path | None:
+    if not comparison:
+        return None
+    lines = [
+        "# Cross-Paper Comparison Matrix",
+        "",
+        "| Group | Representative Papers | Solves | Missing | Assumptions | Benchmark / Metrics |",
+        "|---|---|---|---|---|---|",
+    ]
+    for row in comparison.rows:
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    _escape_cell(row.group),
+                    _escape_cell(_join(row.representative_papers[:4])),
+                    _escape_cell(_join(row.solves)),
+                    _escape_cell(_join(row.missing)),
+                    _escape_cell(_join(row.assumptions)),
+                    _escape_cell(_join(row.benchmark_or_metrics)),
+                ]
+            )
+            + " |"
+        )
+    lines.append("")
+
+    path = output_dir / "comparison_matrix.md"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def _verification_plan(gap: GapEvidence) -> list[str]:
+    lowered = gap.gap.lower()
+    if "temporal" in lowered or "lesion" in lowered:
+        return [
+            "change label accuracy",
+            "finding/location consistency",
+            "no-mask vs T1-mask ablation",
+            "T2-mask upper-bound comparison",
+            "failure taxonomy for missed, hallucinated, and wrong-direction changes",
+        ]
+    if "dataset" in lowered or "benchmark" in lowered:
+        return [
+            "dataset coverage table",
+            "benchmark dimension checklist",
+            "baseline comparability audit",
+            "paired-study availability check",
+        ]
+    if "metric" in lowered:
+        return [
+            "generic metric vs clinical-consistency metric comparison",
+            "finding/location/change-direction metric split",
+            "case-level failure analysis",
+        ]
+    return [
+        "support/counter evidence audit",
+        "representative paper group comparison",
+        "targeted ablation plan",
+    ]
+
+
+def _emergence_lines(gap: GapEvidence, moc: TopicMOC | None, comparison: ComparisonMatrix | None) -> list[str]:
+    lines = []
+    if comparison:
+        for row in comparison.rows[:6]:
+            missing = _join(row.missing)
+            solves = _join(row.solves)
+            lines.append(f"- **{row.group}** solves: {solves} Missing: {missing}")
+    if not lines and moc:
+        for group, titles in moc.paper_groups.items():
+            lines.append(f"- **{group}** contributes {len(titles)} papers to this problem space.")
+    if not lines:
+        lines.append("- The weakness emerges from support/counter evidence patterns in the retrieved papers.")
+    lines.append(f"- Gap score reasons: {'; '.join(gap.score_reasons) if gap.score_reasons else 'not available'}")
+    return lines
+
+
+def _write_weakness_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
+    lines = [
+        f"# Weakness Report: {artifacts.topic}",
+        "",
+        "This report is optimized for research discussion. It focuses on how weaknesses emerge from paper groups, assumptions, counter-evidence, and experimentable next steps.",
+        "",
+        "## Paper Groups",
+        "",
+    ]
+    if artifacts.topic_moc:
+        for group, titles in artifacts.topic_moc.paper_groups.items():
+            lines.append(f"- **{group}**: {len(titles)} papers")
+    else:
+        lines.append("- Topic MOC was not generated.")
+
+    for idx, gap in enumerate(artifacts.gaps, start=1):
+        lines.extend(
+            [
+                "",
+                f"## Weakness {idx}: {gap.gap}",
+                "",
+                f"- Confidence: {gap.confidence}",
+                (
+                    f"- Coverage: support={gap.support_count}/{gap.total_papers}, "
+                    f"counter={gap.counter_count}/{gap.total_papers}, unclear={gap.unclear_count}"
+                ),
+                f"- Why it matters: {gap.why_it_matters}",
+                "",
+                "### How This Weakness Emerges",
+                "",
+            ]
+        )
+        lines.extend(_emergence_lines(gap, artifacts.topic_moc, artifacts.comparison_matrix))
+
+        lines.extend(["", "### Evidence Chain", ""])
+        for evidence in gap.evidence:
+            section = f" [{evidence.section}]" if evidence.section else ""
+            lines.append(f"- **{evidence.paper_title}**{section}: {evidence.claim}")
+
+        lines.extend(["", "### Counter Evidence", ""])
+        if gap.counter_evidence:
+            for evidence in gap.counter_evidence:
+                lines.append(f"- **{evidence.paper_title}**: {evidence.claim}")
+        else:
+            lines.append("- No counter evidence surfaced in the current run.")
+
+        lines.extend(["", "### Why Still Open", ""])
+        for judgment in gap.paper_judgments[:8]:
+            if judgment.role != "support":
+                continue
+            missing = ", ".join(judgment.missing_evidence) or "missing dimensions not explicit"
+            lines.append(f"- **{judgment.paper_title}**: {missing}")
+        if not any(judgment.role == "support" for judgment in gap.paper_judgments):
+            lines.append("- Current evidence does not clearly support this weakness.")
+
+        lines.extend(
+            [
+                "",
+                "### Experimentable Idea",
+                "",
+                f"- {gap.research_opportunity}",
+                "",
+                "### Verification Plan",
+                "",
+            ]
+        )
+        for item in _verification_plan(gap):
+            lines.append(f"- {item}")
+
+    lines.append("")
+    path = output_dir / "weakness_report.md"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
 
 
 def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
+    topic_moc_path = _write_topic_moc(artifacts, output_dir)
+    comparison_path = _write_comparison_matrix(artifacts.comparison_matrix, output_dir)
+    weakness_path = _write_weakness_report(artifacts, output_dir)
+
     lines = [
         f"# Auto Search Report: {artifacts.topic}",
         "",
@@ -16,6 +222,13 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
     ]
     for query in artifacts.query_plan.queries:
         lines.append(f"- `{query}`")
+
+    lines.extend(["", "## MOC-Style Research Artifacts", ""])
+    if topic_moc_path:
+        lines.append(f"- Topic MOC: `{topic_moc_path.name}`")
+    if comparison_path:
+        lines.append(f"- Cross-paper comparison matrix: `{comparison_path.name}`")
+    lines.append(f"- Weakness report: `{weakness_path.name}`")
 
     lines.extend(["", "## 2. Source Execution", ""])
     for status in artifacts.source_statuses:

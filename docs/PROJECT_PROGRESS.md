@@ -50,7 +50,57 @@
   - judgments explain missing evidence and include influence score reasons
   - confidence is adjusted when counter-evidence papers have notable influence signals
 
+## 2026-08-07
+
+- Reframed the next core direction from rule-based gap detection to MOC-style gap discovery.
+- Key insight:
+  - AutoResearch should not find gaps only from single-paper limitations or keyword absence.
+  - Strong gaps should emerge from a problem-space map: single-paper notes, topic MOC aggregation, cross-paper comparison, method-family abstraction, shared assumptions, shared bottlenecks, open questions, and experimentable ideas.
+- Target thinking pipeline:
+  - single-paper insight card
+  - topic MOC aggregation
+  - cross-paper comparison matrix
+  - method pattern and assumption mapping
+  - weakness/gap discovery
+  - counter-evidence resolution
+  - experimentable research opportunity
+- Proposed new artifacts:
+  - `topic_moc.md`
+  - `comparison_matrix.md`
+  - `weakness_report.md`
+- Proposed Paper Insight Card fields:
+  - problem
+  - method core
+  - evidence
+  - assumption
+  - limitation
+  - relation to other papers
+  - inspiration
+  - experimentable gap
+- Gap types to support:
+  - coverage gap
+  - assumption gap
+  - benchmark gap
+  - contradiction gap
+  - experimentability gap
+- Updated product direction:
+  - AutoResearch should become a research-judgment tool that explains how research questions grow from paper relationships, not just a paper search and summary pipeline.
+- Implemented MOC-style Gap Discovery v1:
+  - added Paper Insight Cards with problem, method core, evidence, assumption, limitation, relation to other papers, inspiration, and experimentable gap
+  - added Topic MOC generation for core concepts, paper groups, method patterns, shared assumptions, open questions, and related themes
+  - added Cross-paper Comparison Matrix across paper groups, including solves, missing dimensions, assumptions, and benchmark/metric coverage
+  - added Weakness Report focused on how each weakness emerges, evidence chain, counter evidence, why still open, experimentable idea, and verification plan
+  - added JSON and Markdown artifacts: `paper_insights.json`, `topic_moc.json`, `topic_moc.md`, `comparison_matrix.json`, `comparison_matrix.md`, `weakness_report.md`
+- MOC smoke test passed on `medical VLM temporal lesion change analysis`:
+  - ranked papers: `12`
+  - paper insights: `12`
+  - topic MOC groups: `6`
+  - comparison rows: `6`
+  - generated weaknesses: `3`
+  - note: arXiv returned multiple `429`/timeout errors during this run, but OpenAlex/PubMed/CrossRef kept the pipeline running
+
 ## Next
 
+- Add LLM-backed PaperCard/PaperInsight extraction with strict evidence references.
+- Add source cache/backoff and retry policy for arXiv/OpenAlex/Semantic Scholar rate limits.
 - Add LitSearch-style evaluation for search/ranking quality.
-- Add LLM-backed PaperCard extraction with strict evidence references.

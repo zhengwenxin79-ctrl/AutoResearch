@@ -33,10 +33,16 @@ outputs/<topic-slug>/
   raw/
   search_result.json
   paper_cards.json
+  paper_insights.json
   influences.json
   field_map.json
+  topic_moc.json
+  topic_moc.md
+  comparison_matrix.json
+  comparison_matrix.md
   gaps.json
   report.md
+  weakness_report.md
 ```
 
 ## Current MVP
@@ -53,11 +59,19 @@ outputs/<topic-slug>/
   of study, venue, and open-access PDF links.
 - Paper card extraction from title, abstract, metadata, and section-aware full text when available.
 - Paper Card v2 fields with per-field evidence snippets, extraction status, and coverage tags.
+- Paper Insight Cards that capture problem, method core, evidence, assumption, limitation,
+  cross-paper relation, inspiration, and experimentable gap.
+- Topic MOC generation for core concepts, paper groups, method patterns, shared assumptions,
+  open questions, and related themes.
+- Cross-paper comparison matrix across paper groups: solves, missing, assumptions, and benchmark
+  or metric coverage.
 - Lightweight field mapping by task, method, dataset, metric, and model type.
 - Evidence-grounded gap finding with source URLs, snippets, section labels, support/counter counts,
   and confidence score reasons.
 - Gap Evidence Chain v2 paper-level judgments: each paper is marked as support, counter, or unclear
   for each gap, with missing evidence and influence signals.
+- Weakness report optimized for research discussion: how each weakness emerges, evidence chain,
+  counter evidence, why still open, experimentable idea, and verification plan.
 - Markdown and JSON artifact export.
 
 ## Design Principle

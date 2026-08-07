@@ -11,6 +11,7 @@ from .enrichment import enrich_ranked_papers
 from .field_mapper import build_field_map
 from .fulltext import fetch_full_texts
 from .gap_finder import find_gaps
+from .moc import build_research_space
 from .query_planner import plan_queries
 from .ranker import rank_papers
 from .reader import build_paper_cards
@@ -83,6 +84,7 @@ def run_search(
     cards = build_paper_cards(ranked, full_texts=full_texts, influences=influences)
     field_map = build_field_map(cards)
     gaps = find_gaps(cards, field_map)
+    paper_insights, topic_moc, comparison_matrix = build_research_space(topic, cards, gaps)
 
     artifacts = SearchArtifacts(
         topic=topic,
@@ -92,7 +94,10 @@ def run_search(
         full_texts=list(full_texts.values()),
         influences=list(influences.values()),
         paper_cards=cards,
+        paper_insights=paper_insights,
         field_map=field_map,
+        topic_moc=topic_moc,
+        comparison_matrix=comparison_matrix,
         gaps=gaps,
         warnings=warnings,
     )
