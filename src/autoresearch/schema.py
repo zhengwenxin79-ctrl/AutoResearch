@@ -99,18 +99,34 @@ class OpenAccessRecord(BaseModel):
     error: str = ""
 
 
+class SourceReadiness(BaseModel):
+    status: str = "not_evaluated"
+    ranked_papers: int = 0
+    contributing_sources: int = 0
+    moc_groups: int = 0
+    reasons: list[str] = Field(default_factory=list)
+    failed_sources: list[str] = Field(default_factory=list)
+
+
 class PaperCard(BaseModel):
     title: str
     year: int | None = None
     venue: str = ""
     url: str = ""
+    problem: str = ""
     task: str = ""
     method: str = ""
+    method_family: str = ""
+    core_assumption: str = ""
+    evidence_type: str = ""
     dataset: str = ""
     metrics: str = ""
     model_type: str = ""
     claimed_contribution: str = ""
     limitation: str = ""
+    missing_capability: str = ""
+    relation_to_topic: str = ""
+    gap_hint: str = ""
     relevance_score: float = 0.0
     score_reasons: list[str] = Field(default_factory=list)
     evidence_snippets: list[EvidenceSnippet] = Field(default_factory=list)
@@ -148,19 +164,42 @@ class TopicMOC(BaseModel):
     topic: str
     core_concepts: list[str] = Field(default_factory=list)
     paper_groups: dict[str, list[str]] = Field(default_factory=dict)
+    problem_spaces: list[MOCGroup] = Field(default_factory=list)
     common_method_patterns: list[str] = Field(default_factory=list)
     shared_assumptions: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
     related_themes: list[str] = Field(default_factory=list)
 
 
+class MOCGroup(BaseModel):
+    name: str
+    problem_space: str = ""
+    representative_papers: list[str] = Field(default_factory=list)
+    shared_assumptions: list[str] = Field(default_factory=list)
+    method_families: list[str] = Field(default_factory=list)
+    datasets_or_benchmarks: list[str] = Field(default_factory=list)
+    metrics: list[str] = Field(default_factory=list)
+    covered_capabilities: list[str] = Field(default_factory=list)
+    missing_capabilities: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    possible_experiments: list[str] = Field(default_factory=list)
+    evidence: list[EvidenceSnippet] = Field(default_factory=list)
+
+
 class ComparisonRow(BaseModel):
     group: str
+    problem: str = ""
     representative_papers: list[str] = Field(default_factory=list)
+    method_families: list[str] = Field(default_factory=list)
+    uses_temporal_input: str = "not explicit"
+    uses_lesion_localization: str = "not explicit"
+    evaluates_change: str = "not explicit"
+    evaluates_location_consistency: str = "not explicit"
     solves: list[str] = Field(default_factory=list)
     missing: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     benchmark_or_metrics: list[str] = Field(default_factory=list)
+    gap_hints: list[str] = Field(default_factory=list)
     evidence: list[EvidenceSnippet] = Field(default_factory=list)
 
 
@@ -180,10 +219,20 @@ class GapPaperJudgment(BaseModel):
     influence_reasons: list[str] = Field(default_factory=list)
 
 
+class GapEvidenceStep(BaseModel):
+    paper_title: str
+    source_url: str = ""
+    role: str = "support"
+    claim: str = ""
+    missing_dimensions: list[str] = Field(default_factory=list)
+    evidence: EvidenceSnippet | None = None
+
+
 class GapEvidence(BaseModel):
     gap: str
     evidence: list[EvidenceSnippet] = Field(default_factory=list)
     counter_evidence: list[EvidenceSnippet] = Field(default_factory=list)
+    evidence_chain: list[GapEvidenceStep] = Field(default_factory=list)
     confidence: float = 0.0
     support_count: int = 0
     counter_count: int = 0
@@ -198,6 +247,20 @@ class GapEvidence(BaseModel):
     research_opportunity: str = ""
 
 
+class ResearchOpportunity(BaseModel):
+    gap: str
+    research_question: str = ""
+    hypothesis: str = ""
+    proposed_method: str = ""
+    innovations_bound_to_gap: list[str] = Field(default_factory=list)
+    required_data: str = ""
+    evaluation_protocol: list[str] = Field(default_factory=list)
+    baselines: list[str] = Field(default_factory=list)
+    ablations: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
 class SearchArtifacts(BaseModel):
     topic: str
     generated_at: str = Field(
@@ -209,12 +272,14 @@ class SearchArtifacts(BaseModel):
     full_texts: list[FullTextRecord] = Field(default_factory=list)
     influences: list[PaperInfluence] = Field(default_factory=list)
     open_access_records: list[OpenAccessRecord] = Field(default_factory=list)
+    source_readiness: SourceReadiness | None = None
     paper_cards: list[PaperCard]
     paper_insights: list[PaperInsightCard] = Field(default_factory=list)
     field_map: FieldMap
     topic_moc: TopicMOC | None = None
     comparison_matrix: ComparisonMatrix | None = None
     gaps: list[GapEvidence]
+    research_opportunities: list[ResearchOpportunity] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
     def write_json(self, output_dir: Path) -> None:
@@ -250,5 +315,11 @@ class SearchArtifacts(BaseModel):
             )
         (output_dir / "gaps.json").write_text(
             "[" + ",\n".join(gap.model_dump_json(indent=2) for gap in self.gaps) + "]\n",
+            encoding="utf-8",
+        )
+        (output_dir / "research_opportunities.json").write_text(
+            "["
+            + ",\n".join(row.model_dump_json(indent=2) for row in self.research_opportunities)
+            + "]\n",
             encoding="utf-8",
         )

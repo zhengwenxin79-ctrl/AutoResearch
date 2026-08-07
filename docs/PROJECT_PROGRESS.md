@@ -116,10 +116,35 @@
   - topic MOC groups: `5`
   - comparison rows: `5`
   - note: arXiv still returned `429`/timeout errors and should be handled by source cache/backoff next
+- Implemented MOC v2 + Gap Evidence v1 execution plan:
+  - expanded Paper Card v2 with `problem`, `method_family`, `core_assumption`, `evidence_type`,
+    `missing_capability`, `relation_to_topic`, and `gap_hint`
+  - upgraded Topic MOC from simple paper grouping to problem-space MOC nodes with representative
+    papers, shared assumptions, method families, datasets/benchmarks, metrics, covered capabilities,
+    missing capabilities, open questions, and possible experiments
+  - upgraded Comparison Matrix with temporal-input, lesion-localization, change-evaluation, and
+    location-consistency columns
+  - added explicit `gap_evidence_chains.md`
+  - added evidence-backed `research_opportunities.json` and `research_opportunities.md`
+  - added source readiness gate: `ready_for_preliminary_gap_analysis` vs `needs_more_evidence`
+  - added arXiv local cache, shorter arXiv timeout, and per-run source skipping after repeated
+    consecutive failures
+- MOC v2 smoke test passed on `medical VLM temporal lesion change analysis` with `--limit 8`,
+  `--per-query-limit 1`, and enrichment/full-text disabled:
+  - ranked papers: `8`
+  - generated gaps: `3`
+  - research opportunities: `3`
+  - source readiness: `ready_for_preliminary_gap_analysis`
+  - MOC groups: `5`
+  - source/query rows: `60`
+  - arXiv: `0 ok`, `3 failed`, `7 skipped`
+  - raw results: `openalex=10`, `pubmed=8`, `europepmc=10`, `crossref=9`, `openreview=10`, `arxiv=0`
+  - key artifacts: `source_coverage.md`, `topic_moc.md`, `comparison_matrix.md`,
+    `gap_evidence_chains.md`, `research_opportunities.md`, `weakness_report.md`
 
 ## Next
 
 - Add LLM-backed PaperCard/PaperInsight extraction with strict evidence references.
-- Add source cache/backoff and retry policy for arXiv/OpenAlex/Semantic Scholar rate limits.
+- Add query/source balancing so weak sources do not dominate runtime and source diversity is explicit.
 - Add Papers With Code / benchmark archive support as a dataset and benchmark source, not as a primary paper search source.
 - Add LitSearch-style evaluation for search/ranking quality.

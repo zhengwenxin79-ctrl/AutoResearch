@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .schema import ComparisonMatrix, GapEvidence, SearchArtifacts, TopicMOC
+from .schema import ComparisonMatrix, GapEvidence, ResearchOpportunity, SearchArtifacts, TopicMOC
 
 
 def _escape_cell(value: str) -> str:
@@ -33,6 +33,30 @@ def _write_topic_moc(artifacts: SearchArtifacts, output_dir: Path) -> Path | Non
             lines.append(f"- {title}")
         lines.append("")
 
+    lines.extend(["## Problem Spaces", ""])
+    for group in moc.problem_spaces:
+        lines.extend(
+            [
+                f"### {group.name}",
+                f"- Problem Space: {group.problem_space}",
+                f"- Representative Papers: {_join(group.representative_papers[:6])}",
+                f"- Shared Assumptions: {_join(group.shared_assumptions)}",
+                f"- Method Families: {_join(group.method_families)}",
+                f"- Datasets / Benchmarks: {_join(group.datasets_or_benchmarks)}",
+                f"- Metrics: {_join(group.metrics)}",
+                f"- Covered Capabilities: {_join(group.covered_capabilities)}",
+                f"- Missing Capabilities: {_join(group.missing_capabilities)}",
+                "",
+                "Open Questions:",
+            ]
+        )
+        for question in group.open_questions:
+            lines.append(f"- {question}")
+        lines.extend(["", "Possible Experiments:"])
+        for experiment in group.possible_experiments:
+            lines.append(f"- {experiment}")
+        lines.append("")
+
     lines.extend(["## Common Method Patterns", ""])
     for pattern in moc.common_method_patterns:
         lines.append(f"- {pattern}")
@@ -58,11 +82,16 @@ def _write_topic_moc(artifacts: SearchArtifacts, output_dir: Path) -> Path | Non
 def _write_source_coverage(artifacts: SearchArtifacts, output_dir: Path) -> Path:
     by_source: dict[str, dict[str, int]] = {}
     for status in artifacts.source_statuses:
-        bucket = by_source.setdefault(status.source, {"queries": 0, "ok": 0, "failed": 0, "raw": 0})
+        bucket = by_source.setdefault(
+            status.source,
+            {"queries": 0, "ok": 0, "failed": 0, "skipped": 0, "raw": 0},
+        )
         bucket["queries"] += 1
         bucket["raw"] += status.raw_count
         if status.status == "ok":
             bucket["ok"] += 1
+        elif status.status == "skipped":
+            bucket["skipped"] += 1
         else:
             bucket["failed"] += 1
 
@@ -86,18 +115,31 @@ def _write_source_coverage(artifacts: SearchArtifacts, output_dir: Path) -> Path
         "",
         "## Source Execution",
         "",
-        "| Source | Queries | OK | Failed | Raw Results | Ranked Contributions |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Source | Queries | OK | Failed | Skipped | Raw Results | Ranked Contributions |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for source, stats in sorted(by_source.items()):
         lines.append(
             f"| {source} | {stats['queries']} | {stats['ok']} | {stats['failed']} | "
-            f"{stats['raw']} | {ranked_contrib.get(source, 0)} |"
+            f"{stats['skipped']} | {stats['raw']} | {ranked_contrib.get(source, 0)} |"
         )
 
     lines.extend(["", "## Full-Text / OA Coverage", ""])
     lines.append(f"- Full-text statuses: {full_text_statuses or 'not attempted'}")
     lines.append(f"- Unpaywall statuses: {oa_statuses or 'not attempted'}")
+    lines.append("")
+
+    lines.extend(["## Source Readiness Gate", ""])
+    if artifacts.source_readiness:
+        readiness = artifacts.source_readiness
+        lines.append(f"- Status: {readiness.status}")
+        lines.append(f"- Ranked papers: {readiness.ranked_papers}")
+        lines.append(f"- Contributing sources: {readiness.contributing_sources}")
+        lines.append(f"- MOC groups: {readiness.moc_groups}")
+        for reason in readiness.reasons:
+            lines.append(f"- {reason}")
+    else:
+        lines.append("- Source readiness was not evaluated.")
     lines.append("")
 
     lines.extend(["## MOC Coverage", ""])
@@ -127,8 +169,8 @@ def _write_comparison_matrix(comparison: ComparisonMatrix | None, output_dir: Pa
     lines = [
         "# Cross-Paper Comparison Matrix",
         "",
-        "| Group | Representative Papers | Solves | Missing | Assumptions | Benchmark / Metrics |",
-        "|---|---|---|---|---|---|",
+        "| Group | Problem | Methods | Temporal Input | Lesion Localization | Evaluates Change | Location Consistency | Benchmark / Metrics | Gap Hints |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for row in comparison.rows:
         lines.append(
@@ -136,14 +178,29 @@ def _write_comparison_matrix(comparison: ComparisonMatrix | None, output_dir: Pa
             + " | ".join(
                 [
                     _escape_cell(row.group),
-                    _escape_cell(_join(row.representative_papers[:4])),
-                    _escape_cell(_join(row.solves)),
-                    _escape_cell(_join(row.missing)),
-                    _escape_cell(_join(row.assumptions)),
+                    _escape_cell(row.problem),
+                    _escape_cell(_join(row.method_families)),
+                    _escape_cell(row.uses_temporal_input),
+                    _escape_cell(row.uses_lesion_localization),
+                    _escape_cell(row.evaluates_change),
+                    _escape_cell(row.evaluates_location_consistency),
                     _escape_cell(_join(row.benchmark_or_metrics)),
+                    _escape_cell(_join(row.gap_hints)),
                 ]
             )
             + " |"
+        )
+    lines.extend(["", "## Group Details", ""])
+    for row in comparison.rows:
+        lines.extend(
+            [
+                f"### {row.group}",
+                f"- Representative Papers: {_join(row.representative_papers[:5])}",
+                f"- Solves: {_join(row.solves)}",
+                f"- Missing: {_join(row.missing)}",
+                f"- Assumptions: {_join(row.assumptions)}",
+                "",
+            ]
         )
     lines.append("")
 
@@ -275,11 +332,129 @@ def _write_weakness_report(artifacts: SearchArtifacts, output_dir: Path) -> Path
     return path
 
 
+def _write_gap_evidence_chains(artifacts: SearchArtifacts, output_dir: Path) -> Path:
+    lines = [
+        f"# Gap Evidence Chains: {artifacts.topic}",
+        "",
+        "Each claim below is a preliminary research hypothesis. It should be read as an evidence chain, not as a final survey conclusion.",
+        "",
+    ]
+    for idx, gap in enumerate(artifacts.gaps, start=1):
+        lines.extend(
+            [
+                f"## Gap {idx}: {gap.gap}",
+                "",
+                f"- Confidence: {gap.confidence}",
+                (
+                    f"- Coverage: support={gap.support_count}/{gap.total_papers}, "
+                    f"counter={gap.counter_count}/{gap.total_papers}, unclear={gap.unclear_count}"
+                ),
+                f"- Why it matters: {gap.why_it_matters}",
+                "",
+                "### Evidence Chain",
+                "",
+            ]
+        )
+        if gap.evidence_chain:
+            for step_no, step in enumerate(gap.evidence_chain, start=1):
+                missing = (
+                    f" Missing dimensions: {', '.join(step.missing_dimensions)}."
+                    if step.missing_dimensions
+                    else ""
+                )
+                lines.append(
+                    f"{step_no}. **{step.paper_title}** ({step.role}): {step.claim}.{missing}"
+                )
+                if step.evidence:
+                    section = f" [{step.evidence.section}]" if step.evidence.section else ""
+                    lines.append(f"   - Evidence{section}: {step.evidence.snippet}")
+                    if step.source_url:
+                        lines.append(f"   - Source: {step.source_url}")
+        else:
+            lines.append("- No paper-level evidence chain was generated.")
+
+        lines.extend(["", "### Counter-Evidence To Resolve", ""])
+        if gap.counter_evidence:
+            for evidence in gap.counter_evidence:
+                lines.append(f"- **{evidence.paper_title}**: {evidence.claim}")
+        else:
+            lines.append("- No counter-evidence surfaced in this run.")
+
+        lines.extend(["", "### How To Validate", ""])
+        for item in _verification_plan(gap):
+            lines.append(f"- {item}")
+        lines.append("")
+
+    path = output_dir / "gap_evidence_chains.md"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def _write_research_opportunities(
+    opportunities: list[ResearchOpportunity],
+    output_dir: Path,
+    topic: str,
+) -> Path:
+    lines = [
+        f"# Research Opportunities: {topic}",
+        "",
+        "These opportunities are generated only when a gap has at least two supporting evidence-chain steps.",
+        "",
+    ]
+    if not opportunities:
+        lines.append("- No evidence-backed research opportunities were generated in this run.")
+    for idx, opportunity in enumerate(opportunities, start=1):
+        lines.extend(
+            [
+                f"## Opportunity {idx}",
+                "",
+                f"- Bound Gap: {opportunity.gap}",
+                f"- Research Question: {opportunity.research_question}",
+                f"- Hypothesis: {opportunity.hypothesis}",
+                f"- Proposed Method: {opportunity.proposed_method}",
+                f"- Required Data: {opportunity.required_data}",
+                f"- Evidence Refs: {_join(opportunity.evidence_refs)}",
+                "",
+                "### Innovations Bound To Gap",
+                "",
+            ]
+        )
+        for innovation in opportunity.innovations_bound_to_gap:
+            lines.append(f"- {innovation}")
+
+        lines.extend(["", "### Evaluation Protocol", ""])
+        for item in opportunity.evaluation_protocol:
+            lines.append(f"- {item}")
+
+        lines.extend(["", "### Baselines", ""])
+        for baseline in opportunity.baselines:
+            lines.append(f"- {baseline}")
+
+        lines.extend(["", "### Ablations", ""])
+        for ablation in opportunity.ablations:
+            lines.append(f"- {ablation}")
+
+        lines.extend(["", "### Risks", ""])
+        for risk in opportunity.risks:
+            lines.append(f"- {risk}")
+        lines.append("")
+
+    path = output_dir / "research_opportunities.md"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
 def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
     source_coverage_path = _write_source_coverage(artifacts, output_dir)
     topic_moc_path = _write_topic_moc(artifacts, output_dir)
     comparison_path = _write_comparison_matrix(artifacts.comparison_matrix, output_dir)
     weakness_path = _write_weakness_report(artifacts, output_dir)
+    gap_chain_path = _write_gap_evidence_chains(artifacts, output_dir)
+    opportunity_path = _write_research_opportunities(
+        artifacts.research_opportunities,
+        output_dir,
+        artifacts.topic,
+    )
 
     lines = [
         f"# Auto Search Report: {artifacts.topic}",
@@ -298,6 +473,8 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
         lines.append(f"- Topic MOC: `{topic_moc_path.name}`")
     if comparison_path:
         lines.append(f"- Cross-paper comparison matrix: `{comparison_path.name}`")
+    lines.append(f"- Gap evidence chains: `{gap_chain_path.name}`")
+    lines.append(f"- Research opportunities: `{opportunity_path.name}`")
     lines.append(f"- Weakness report: `{weakness_path.name}`")
 
     lines.extend(["", "## 2. Source Execution", ""])
@@ -365,11 +542,18 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
         lines.extend(
             [
                 f"### {card.title}",
+                f"- Problem: {card.problem}",
                 f"- Task: {card.task}",
                 f"- Method: {card.method}",
+                f"- Method Family: {card.method_family}",
+                f"- Core Assumption: {card.core_assumption}",
+                f"- Evidence Type: {card.evidence_type}",
                 f"- Dataset: {card.dataset}",
                 f"- Metrics: {card.metrics}",
                 f"- Limitation: {card.limitation or 'not explicit'}",
+                f"- Missing Capability: {card.missing_capability or 'not explicit'}",
+                f"- Relation To Topic: {card.relation_to_topic or 'not explicit'}",
+                f"- Gap Hint: {card.gap_hint or 'not explicit'}",
                 f"- Coverage tags: {', '.join(card.coverage_tags) if card.coverage_tags else 'none'}",
                 f"- Influence score inputs: {', '.join(card.influence.fields_of_study) if card.influence and card.influence.fields_of_study else 'not available'}",
                 "",
@@ -440,6 +624,24 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
                     f"role={judgment.role}, influence_score={judgment.influence_score}"
                     f"{missing}{reasons}"
                 )
+        lines.append("")
+
+    lines.extend(["## 8b. Evidence-Backed Research Opportunities", ""])
+    if artifacts.research_opportunities:
+        for idx, opportunity in enumerate(artifacts.research_opportunities, start=1):
+            lines.extend(
+                [
+                    f"### Opportunity {idx}",
+                    f"- Bound gap: {opportunity.gap}",
+                    f"- Research question: {opportunity.research_question}",
+                    f"- Hypothesis: {opportunity.hypothesis}",
+                    f"- Evidence refs: {_join(opportunity.evidence_refs)}",
+                    f"- Required data: {opportunity.required_data}",
+                    "",
+                ]
+            )
+    else:
+        lines.append("- No evidence-backed opportunities were generated.")
         lines.append("")
 
     lines.extend(["## 9. Search Limitations", ""])

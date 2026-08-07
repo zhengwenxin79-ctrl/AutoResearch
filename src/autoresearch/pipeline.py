@@ -17,7 +17,7 @@ from .dedupe import dedupe_papers
 from .enrichment import enrich_ranked_papers
 from .field_mapper import build_field_map
 from .fulltext import fetch_full_texts
-from .gap_finder import find_gaps
+from .gap_finder import build_research_opportunities, find_gaps
 from .moc import build_research_space
 from .open_access import enrich_open_access
 from .query_planner import plan_queries
@@ -25,6 +25,7 @@ from .ranker import rank_papers
 from .reader import build_paper_cards
 from .report import write_report
 from .schema import PaperRecord, SearchArtifacts, SourceStatus
+from .source_health import evaluate_source_readiness
 from .utils import slugify
 
 Collector = Callable[[str, int], list[PaperRecord]]
@@ -49,6 +50,7 @@ def run_search(
     full_text_limit: int = 8,
     enrichment_limit: int = 20,
     open_access_limit: int = 20,
+    source_failure_skip_threshold: int = 3,
     console: Console | None = None,
 ) -> tuple[SearchArtifacts, Path]:
     console = console or Console()
@@ -56,19 +58,30 @@ def run_search(
     statuses: list[SourceStatus] = []
     warnings: list[str] = []
     papers: list[PaperRecord] = []
+    consecutive_failures: dict[str, int] = {}
 
     for query in plan.queries:
         for source_name, collector in COLLECTORS.items():
+            if (
+                source_failure_skip_threshold > 0
+                and consecutive_failures.get(source_name, 0) >= source_failure_skip_threshold
+            ):
+                error = f"skipped after {source_failure_skip_threshold} consecutive failures"
+                statuses.append(SourceStatus(source=source_name, query=query, status="skipped", error=error))
+                console.print(f"[yellow]skip[/yellow] {source_name}: {error}")
+                continue
             try:
                 rows = collector(query, per_query_limit)
                 papers.extend(rows)
                 statuses.append(
                     SourceStatus(source=source_name, query=query, status="ok", raw_count=len(rows))
                 )
+                consecutive_failures[source_name] = 0
                 console.print(f"[green]ok[/green] {source_name}: {len(rows)} results for {query!r}")
             except Exception as exc:  # noqa: BLE001 - keep one bad source/query from stopping the run.
                 message = f"{source_name} failed for {query!r}: {exc}"
                 warnings.append(message)
+                consecutive_failures[source_name] = consecutive_failures.get(source_name, 0) + 1
                 statuses.append(
                     SourceStatus(source=source_name, query=query, status="failed", error=str(exc))
                 )
@@ -105,6 +118,8 @@ def run_search(
     field_map = build_field_map(cards)
     gaps = find_gaps(cards, field_map)
     paper_insights, topic_moc, comparison_matrix = build_research_space(topic, cards, gaps)
+    source_readiness = evaluate_source_readiness(statuses, ranked, topic_moc)
+    research_opportunities = build_research_opportunities(gaps)
 
     artifacts = SearchArtifacts(
         topic=topic,
@@ -114,12 +129,14 @@ def run_search(
         full_texts=list(full_texts.values()),
         influences=list(influences.values()),
         open_access_records=list(open_access_records.values()),
+        source_readiness=source_readiness,
         paper_cards=cards,
         paper_insights=paper_insights,
         field_map=field_map,
         topic_moc=topic_moc,
         comparison_matrix=comparison_matrix,
         gaps=gaps,
+        research_opportunities=research_opportunities,
         warnings=warnings,
     )
     artifacts.write_json(output_dir)

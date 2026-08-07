@@ -7,6 +7,7 @@ from .schema import (
     ComparisonRow,
     EvidenceSnippet,
     GapEvidence,
+    MOCGroup,
     PaperCard,
     PaperInsightCard,
     TopicMOC,
@@ -95,6 +96,41 @@ GROUP_ASSUMPTIONS = {
     ],
 }
 
+GROUP_PROBLEM_SPACE = {
+    GROUP_TEMPORAL_LESION: "lesion-level temporal change reasoning",
+    GROUP_LONGITUDINAL: "longitudinal medical imaging and follow-up comparison",
+    GROUP_REPORT: "clinical report generation and textual finding description",
+    GROUP_LOCALIZATION: "lesion localization, grounding, masking, and region-level evidence",
+    GROUP_BENCHMARK: "benchmark and evaluation design for medical multimodal systems",
+    GROUP_DIAGNOSIS: "single-study medical VLM diagnosis, classification, and VQA",
+    GROUP_GENERAL: "general medical multimodal foundation-model capability",
+}
+
+GROUP_COVERED = {
+    GROUP_TEMPORAL_LESION: [
+        "temporal or change-oriented signals",
+        "lesion, finding, mask, or localization signals",
+    ],
+    GROUP_LONGITUDINAL: [
+        "longitudinal or follow-up medical image understanding",
+    ],
+    GROUP_REPORT: [
+        "report-level clinical finding description",
+    ],
+    GROUP_LOCALIZATION: [
+        "lesion or finding-level grounding",
+    ],
+    GROUP_BENCHMARK: [
+        "explicit dataset, metric, or evaluation framing",
+    ],
+    GROUP_DIAGNOSIS: [
+        "single-study image understanding or medical VQA",
+    ],
+    GROUP_GENERAL: [
+        "broad medical multimodal capability context",
+    ],
+}
+
 
 def _has_tag(card: PaperCard, tag: str) -> bool:
     return tag in card.coverage_tags
@@ -137,6 +173,8 @@ def _evidence_summary(card: PaperCard) -> str:
 
 
 def _limitation_for(card: PaperCard, group: str) -> str:
+    if card.missing_capability and card.missing_capability != "not obvious from extracted metadata":
+        return card.missing_capability
     if card.limitation:
         return card.limitation
     missing = []
@@ -226,13 +264,13 @@ def build_paper_insights(cards: list[PaperCard]) -> list[PaperInsightCard]:
             title=card.title,
             url=card.url,
             group=group,
-            problem=f"{card.task} in the {group.lower()} problem space.",
-            method_core=card.method,
+            problem=card.problem or f"{card.task} in the {group.lower()} problem space.",
+            method_core=card.method_family or card.method,
             evidence=_evidence_summary(card),
-            assumption=GROUP_ASSUMPTIONS[group][0],
+            assumption=card.core_assumption or GROUP_ASSUMPTIONS[group][0],
             limitation=_limitation_for(card, group),
             relation_to_others=_relation_to_others(group),
-            inspiration=_inspiration_for(group),
+            inspiration=card.gap_hint or _inspiration_for(group),
             experimentable_gap=_experimentable_gap_for(group, card),
             evidence_snippet=_primary_evidence(card),
         )
@@ -300,11 +338,113 @@ def _related_themes(cards: list[PaperCard]) -> list[str]:
     return themes[:12]
 
 
+def _dedupe(values: list[str], limit: int = 8) -> list[str]:
+    deduped = []
+    for value in values:
+        if value and value != "not explicit" and value not in deduped:
+            deduped.append(value)
+    return deduped[:limit]
+
+
+def _split_capabilities(values: list[str]) -> list[str]:
+    capabilities = []
+    for value in values:
+        for part in value.split(";"):
+            cleaned = part.strip()
+            if cleaned and cleaned != "not obvious from extracted metadata":
+                capabilities.append(cleaned)
+    return capabilities
+
+
+def _capability_state(cards: list[PaperCard], tag: str) -> str:
+    if not cards:
+        return "not explicit"
+    count = sum(1 for card in cards if _has_tag(card, tag))
+    if count == len(cards):
+        return "yes"
+    if count > 0:
+        return f"partial ({count}/{len(cards)})"
+    return "no"
+
+
+def _evaluates_location_consistency(cards: list[PaperCard]) -> str:
+    if not cards:
+        return "not explicit"
+    count = 0
+    for card in cards:
+        text = f"{card.metrics} {card.claimed_contribution} {card.limitation}".lower()
+        if "location consistency" in text or ("location" in text and "consistency" in text):
+            count += 1
+    if count == len(cards):
+        return "yes"
+    if count > 0:
+        return f"partial ({count}/{len(cards)})"
+    return "no"
+
+
+def _problem_space_groups(cards: list[PaperCard], insights: list[PaperInsightCard]) -> list[MOCGroup]:
+    cards_by_title = {card.title: card for card in cards}
+    grouped: dict[str, list[PaperInsightCard]] = defaultdict(list)
+    for insight in insights:
+        grouped[insight.group].append(insight)
+
+    groups: list[MOCGroup] = []
+    for group, group_insights in grouped.items():
+        group_cards = [cards_by_title[insight.title] for insight in group_insights if insight.title in cards_by_title]
+        missing = _dedupe(_split_capabilities([card.missing_capability for card in group_cards]), limit=6)
+        gap_hints = _dedupe([card.gap_hint for card in group_cards], limit=4)
+        open_questions = [
+            f"Does {GROUP_PROBLEM_SPACE[group]} cover the target workflow, or only an adjacent proxy?",
+            "Which extracted assumptions would fail under paired-study lesion change evaluation?",
+        ]
+        if gap_hints:
+            open_questions.extend(f"Can we validate this hint: {hint}" for hint in gap_hints[:2])
+        experiments = _dedupe(
+            [_experimentable_gap_for(group, card) for card in group_cards],
+            limit=4,
+        )
+        groups.append(
+            MOCGroup(
+                name=group,
+                problem_space=GROUP_PROBLEM_SPACE[group],
+                representative_papers=[insight.title for insight in group_insights[:8]],
+                shared_assumptions=_dedupe([insight.assumption for insight in group_insights], limit=5)
+                or GROUP_ASSUMPTIONS[group],
+                method_families=_dedupe([card.method_family for card in group_cards], limit=5)
+                or _dedupe([card.method for card in group_cards], limit=5)
+                or ["method family not explicit"],
+                datasets_or_benchmarks=_dedupe(
+                    [card.dataset for card in group_cards if card.dataset != "not explicit"],
+                    limit=6,
+                )
+                or ["not explicit in extracted cards"],
+                metrics=_dedupe(
+                    [card.metrics for card in group_cards if card.metrics != "not explicit"],
+                    limit=6,
+                )
+                or ["not explicit in extracted cards"],
+                covered_capabilities=GROUP_COVERED[group],
+                missing_capabilities=missing or GROUP_MISSING[group],
+                open_questions=open_questions[:6],
+                possible_experiments=experiments or [_experimentable_gap_for(group, group_cards[0])]
+                if group_cards
+                else GROUP_MISSING[group],
+                evidence=[
+                    insight.evidence_snippet
+                    for insight in group_insights[:3]
+                    if insight.evidence_snippet is not None
+                ],
+            )
+        )
+    return groups
+
+
 def build_topic_moc(topic: str, cards: list[PaperCard], insights: list[PaperInsightCard], gaps: list[GapEvidence]) -> TopicMOC:
     return TopicMOC(
         topic=topic,
         core_concepts=_concepts_from_topic(topic, insights),
         paper_groups=_paper_groups(insights),
+        problem_spaces=_problem_space_groups(cards, insights),
         common_method_patterns=_common_method_patterns(cards),
         shared_assumptions=_shared_assumptions(insights),
         open_questions=_open_questions(gaps),
@@ -343,11 +483,18 @@ def build_comparison_matrix(cards: list[PaperCard], insights: list[PaperInsightC
         rows.append(
             ComparisonRow(
                 group=group,
+                problem=GROUP_PROBLEM_SPACE[group],
                 representative_papers=[insight.title for insight in group_insights[:5]],
+                method_families=_dedupe([card.method_family for card in group_cards], limit=5),
+                uses_temporal_input=_capability_state(group_cards, "temporal_or_change"),
+                uses_lesion_localization=_capability_state(group_cards, "lesion_or_localization"),
+                evaluates_change=_capability_state(group_cards, "temporal_or_change"),
+                evaluates_location_consistency=_evaluates_location_consistency(group_cards),
                 solves=GROUP_SOLVES[group],
                 missing=GROUP_MISSING[group],
                 assumptions=GROUP_ASSUMPTIONS[group],
                 benchmark_or_metrics=_group_benchmark_or_metrics(group_cards),
+                gap_hints=_dedupe([card.gap_hint for card in group_cards], limit=5),
                 evidence=evidence,
             )
         )

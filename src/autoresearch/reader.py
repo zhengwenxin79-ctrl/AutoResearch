@@ -218,6 +218,111 @@ def _coverage_tags(
     return tags
 
 
+def _problem_for(task: str, coverage_tags: list[str]) -> str:
+    if "temporal_or_change" in coverage_tags and "lesion_or_localization" in coverage_tags:
+        return "lesion-level temporal change reasoning"
+    if "temporal_or_change" in coverage_tags:
+        return "longitudinal or temporal medical image understanding"
+    if "lesion_or_localization" in coverage_tags:
+        return "lesion or finding localization in medical multimodal tasks"
+    if task == "medical report generation":
+        return "clinical report generation and textual finding description"
+    if task in {"diagnosis/classification", "visual question answering"}:
+        return "single-study medical VLM diagnosis or question answering"
+    if "benchmark_or_evaluation" in coverage_tags:
+        return "medical AI evaluation and benchmark construction"
+    return "general medical multimodal foundation capability"
+
+
+def _method_family_for(method: str, model_type: str) -> str:
+    if "mask" in method:
+        return "lesion- or region-guided modeling"
+    if "instruction" in method:
+        return "instruction-tuned multimodal modeling"
+    if "contrastive" in method or "alignment" in method:
+        return "contrastive vision-language alignment"
+    if "retrieval" in method:
+        return "retrieval-augmented multimodal modeling"
+    if "vision-language" in method or "multimodal" in model_type:
+        return "medical vision-language foundation model"
+    return "method family not explicit"
+
+
+def _core_assumption_for(task: str, coverage_tags: list[str]) -> str:
+    if "temporal_or_change" in coverage_tags and "lesion_or_localization" in coverage_tags:
+        return "localized findings can serve as anchors for comparing disease state across time."
+    if "temporal_or_change" in coverage_tags:
+        return "temporal clinical change can be captured without always requiring explicit lesion anchors."
+    if "lesion_or_localization" in coverage_tags:
+        return "static lesion or region grounding is a useful proxy for downstream clinical reasoning."
+    if task == "medical report generation":
+        return "report text quality is a sufficient proxy for clinically meaningful visual understanding."
+    if task in {"diagnosis/classification", "visual question answering"}:
+        return "single-study recognition performance transfers to richer clinical reasoning workflows."
+    return "broad medical multimodal performance transfers to the target research workflow."
+
+
+def _evidence_type_for(
+    evidence_source: str,
+    datasets: list[str],
+    metrics: list[str],
+    coverage_tags: list[str],
+) -> str:
+    parts = ["full-text section evidence" if evidence_source == "full text" else "abstract/metadata evidence"]
+    if datasets:
+        parts.append("dataset named")
+    if metrics:
+        parts.append("metric named")
+    if "benchmark_or_evaluation" in coverage_tags:
+        parts.append("evaluation signal present")
+    return "; ".join(parts)
+
+
+def _missing_capability_for(coverage_tags: list[str]) -> str:
+    missing = []
+    if "temporal_or_change" not in coverage_tags:
+        missing.append("explicit temporal/change reasoning")
+    if "lesion_or_localization" not in coverage_tags:
+        missing.append("lesion-level localization or grounding")
+    if "metric_missing" in coverage_tags:
+        missing.append("capability-specific metrics")
+    if "dataset_missing" in coverage_tags:
+        missing.append("explicit dataset or benchmark context")
+    return "; ".join(missing) if missing else "not obvious from extracted metadata"
+
+
+def _relation_to_topic_for(coverage_tags: list[str]) -> str:
+    has_temporal = "temporal_or_change" in coverage_tags
+    has_lesion = "lesion_or_localization" in coverage_tags
+    if has_temporal and has_lesion:
+        return "direct candidate for the target problem space"
+    if has_temporal:
+        return "temporal candidate that needs lesion-level grounding comparison"
+    if has_lesion:
+        return "localization candidate that needs paired temporal comparison"
+    if "benchmark_or_evaluation" in coverage_tags:
+        return "evaluation context that may expose benchmark coverage gaps"
+    return "background or adjacent medical VLM evidence"
+
+
+def _gap_hint_for(problem: str, missing_capability: str, coverage_tags: list[str]) -> str:
+    if "not obvious" in missing_capability:
+        return f"Audit whether {problem} is truly evaluated under the target clinical workflow."
+    if "temporal/change" in missing_capability and "lesion-level" in missing_capability:
+        return "The paper may support a gap around missing lesion-grounded temporal reasoning."
+    if "temporal/change" in missing_capability:
+        return "The paper may support a gap between static localization and temporal lesion tracking."
+    if "lesion-level" in missing_capability:
+        return "The paper may support a gap between longitudinal modeling and localized lesion comparison."
+    if "capability-specific metrics" in missing_capability:
+        return "The paper may support a gap around evaluation metrics that miss fine-grained clinical change."
+    if "explicit dataset" in missing_capability:
+        return "The paper may support a gap around benchmark comparability and dataset transparency."
+    if "metric_explicit" in coverage_tags and "dataset_explicit" in coverage_tags:
+        return "Use this paper as possible counter-evidence when testing whether the gap still holds."
+    return "Use this paper to refine the problem-space map before claiming a gap."
+
+
 def build_paper_cards(
     ranked: list[RankedPaper],
     full_texts: dict[str, FullTextRecord] | None = None,
@@ -281,19 +386,34 @@ def build_paper_cards(
             if re.search(r"(vlm|vision-language|multimodal)", text, re.IGNORECASE)
             else "not explicit"
         )
+        coverage_tags = _coverage_tags(text, datasets, metrics, limitation, evidence_source)
+        problem = _problem_for(task, coverage_tags)
+        method_family = _method_family_for(method, model_type)
+        core_assumption = _core_assumption_for(task, coverage_tags)
+        evidence_type = _evidence_type_for(evidence_source, datasets, metrics, coverage_tags)
+        missing_capability = _missing_capability_for(coverage_tags)
+        relation_to_topic = _relation_to_topic_for(coverage_tags)
+        gap_hint = _gap_hint_for(problem, missing_capability, coverage_tags)
         cards.append(
             PaperCard(
                 title=paper.title,
                 year=paper.year,
                 venue=paper.venue,
                 url=paper.url,
+                problem=problem,
                 task=task,
                 method=method,
+                method_family=method_family,
+                core_assumption=core_assumption,
+                evidence_type=evidence_type,
                 dataset=dataset_value,
                 metrics=metric_value,
                 model_type=model_type,
                 claimed_contribution=contribution,
                 limitation=limitation,
+                missing_capability=missing_capability,
+                relation_to_topic=relation_to_topic,
+                gap_hint=gap_hint,
                 relevance_score=row.relevance_score,
                 score_reasons=row.score_reasons,
                 evidence_snippets=primary_evidence,
@@ -305,8 +425,13 @@ def build_paper_cards(
                     "metrics": _status_for(metric_value),
                     "model_type": _status_for(model_type, inferred=True),
                     "limitation": _status_for(limitation, inferred=True),
+                    "problem": _status_for(problem, inferred=True),
+                    "method_family": _status_for(method_family, inferred=True),
+                    "core_assumption": _status_for(core_assumption, inferred=True),
+                    "missing_capability": _status_for(missing_capability, inferred=True),
+                    "gap_hint": _status_for(gap_hint, inferred=True),
                 },
-                coverage_tags=_coverage_tags(text, datasets, metrics, limitation, evidence_source),
+                coverage_tags=coverage_tags,
                 influence=influences.get(paper.title),
             )
         )

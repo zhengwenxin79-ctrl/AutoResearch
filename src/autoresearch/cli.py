@@ -35,6 +35,10 @@ def search(
         20,
         help="Number of top-ranked DOI papers to enrich with Unpaywall open-access links.",
     ),
+    source_failure_skip_threshold: int = typer.Option(
+        3,
+        help="Skip a source for the rest of the run after this many consecutive failures.",
+    ),
 ) -> None:
     """Run Auto Search for a research topic."""
     artifacts, output_dir = run_search(
@@ -45,6 +49,7 @@ def search(
         full_text_limit=full_text_limit,
         enrichment_limit=enrichment_limit,
         open_access_limit=open_access_limit,
+        source_failure_skip_threshold=source_failure_skip_threshold,
         console=console,
     )
     console.print()
