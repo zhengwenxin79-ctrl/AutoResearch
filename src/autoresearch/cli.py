@@ -39,6 +39,18 @@ def search(
         3,
         help="Skip a source for the rest of the run after this many consecutive failures.",
     ),
+    llm_card_limit: int = typer.Option(
+        0,
+        help="Number of top paper cards to refine with a configured OpenAI-compatible LLM.",
+    ),
+    llm_model: str = typer.Option(
+        "",
+        help="Override AUTORESEARCH_LLM_MODEL for LLM-backed paper card extraction.",
+    ),
+    llm_timeout: float = typer.Option(
+        45.0,
+        help="Timeout in seconds for each LLM-backed paper card extraction request.",
+    ),
 ) -> None:
     """Run Auto Search for a research topic."""
     artifacts, output_dir = run_search(
@@ -50,6 +62,9 @@ def search(
         enrichment_limit=enrichment_limit,
         open_access_limit=open_access_limit,
         source_failure_skip_threshold=source_failure_skip_threshold,
+        llm_card_limit=llm_card_limit,
+        llm_model=llm_model,
+        llm_timeout=llm_timeout,
         console=console,
     )
     console.print()

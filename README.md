@@ -32,6 +32,17 @@ Optional Unpaywall email for open-access PDF enrichment:
 export UNPAYWALL_EMAIL="you@example.com"
 ```
 
+Optional evidence-grounded LLM extraction:
+
+```bash
+export AUTORESEARCH_LLM_API_KEY="..."
+export AUTORESEARCH_LLM_MODEL="..."
+# Optional for local or non-default OpenAI-compatible endpoints:
+export AUTORESEARCH_LLM_BASE_URL="https://api.openai.com/v1"
+
+autoresearch search "medical VLM temporal lesion change analysis" --llm-card-limit 5
+```
+
 Outputs are written to:
 
 ```text
@@ -43,6 +54,7 @@ outputs/<topic-slug>/
   paper_insights.json
   influences.json
   open_access.json
+  llm_extractions.json
   field_map.json
   topic_moc.json
   topic_moc.md
@@ -75,6 +87,8 @@ outputs/<topic-slug>/
 - Paper Card v2 fields with problem, method family, core assumption, evidence type, missing
   capability, relation-to-topic, gap hint, per-field evidence snippets, extraction status, and
   coverage tags.
+- Optional LLM-backed Paper Card refinement through an OpenAI-compatible chat-completions endpoint.
+  It is disabled by default and only updates fields that cite existing evidence snippet IDs.
 - Paper Insight Cards that capture problem, method core, evidence, assumption, limitation,
   cross-paper relation, inspiration, and experimentable gap.
 - Topic MOC v2 generation for core concepts, paper groups, problem spaces, shared assumptions,

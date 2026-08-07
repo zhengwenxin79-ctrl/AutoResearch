@@ -537,6 +537,22 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
     else:
         lines.append("- Open access enrichment was not attempted.")
 
+    lines.extend(["", "## 5c. LLM-Backed Paper Card Extraction", ""])
+    if artifacts.llm_extractions:
+        for record in artifacts.llm_extractions[:15]:
+            if record.status == "ok":
+                lines.append(
+                    f"- **{record.title}**: {record.status}, model={record.model or 'n/a'}, "
+                    f"updated={_join(record.fields_updated, fallback='none')}"
+                )
+            else:
+                lines.append(
+                    f"- **{record.title}**: {record.status}, model={record.model or 'n/a'}, "
+                    f"error={record.error or 'n/a'}"
+                )
+    else:
+        lines.append("- LLM-backed extraction was not attempted.")
+
     lines.extend(["", "## 6. Paper Cards", ""])
     for card in artifacts.paper_cards[:15]:
         lines.extend(

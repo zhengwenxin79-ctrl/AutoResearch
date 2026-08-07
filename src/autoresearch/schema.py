@@ -108,6 +108,16 @@ class SourceReadiness(BaseModel):
     failed_sources: list[str] = Field(default_factory=list)
 
 
+class LLMExtractionRecord(BaseModel):
+    title: str
+    provider: str = "openai-compatible"
+    model: str = ""
+    status: str = "not_attempted"
+    fields_updated: list[str] = Field(default_factory=list)
+    evidence_refs: dict[str, list[str]] = Field(default_factory=dict)
+    error: str = ""
+
+
 class PaperCard(BaseModel):
     title: str
     year: int | None = None
@@ -272,6 +282,7 @@ class SearchArtifacts(BaseModel):
     full_texts: list[FullTextRecord] = Field(default_factory=list)
     influences: list[PaperInfluence] = Field(default_factory=list)
     open_access_records: list[OpenAccessRecord] = Field(default_factory=list)
+    llm_extractions: list[LLMExtractionRecord] = Field(default_factory=list)
     source_readiness: SourceReadiness | None = None
     paper_cards: list[PaperCard]
     paper_insights: list[PaperInsightCard] = Field(default_factory=list)
@@ -300,6 +311,10 @@ class SearchArtifacts(BaseModel):
         )
         (output_dir / "open_access.json").write_text(
             "[" + ",\n".join(row.model_dump_json(indent=2) for row in self.open_access_records) + "]\n",
+            encoding="utf-8",
+        )
+        (output_dir / "llm_extractions.json").write_text(
+            "[" + ",\n".join(row.model_dump_json(indent=2) for row in self.llm_extractions) + "]\n",
             encoding="utf-8",
         )
         (output_dir / "field_map.json").write_text(

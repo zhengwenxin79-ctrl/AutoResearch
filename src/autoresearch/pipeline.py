@@ -18,6 +18,7 @@ from .enrichment import enrich_ranked_papers
 from .field_mapper import build_field_map
 from .fulltext import fetch_full_texts
 from .gap_finder import build_research_opportunities, find_gaps
+from .llm_extractor import enhance_paper_cards_with_llm
 from .moc import build_research_space
 from .open_access import enrich_open_access
 from .query_planner import plan_queries
@@ -51,6 +52,9 @@ def run_search(
     enrichment_limit: int = 20,
     open_access_limit: int = 20,
     source_failure_skip_threshold: int = 3,
+    llm_card_limit: int = 0,
+    llm_model: str = "",
+    llm_timeout: float = 45.0,
     console: Console | None = None,
 ) -> tuple[SearchArtifacts, Path]:
     console = console or Console()
@@ -115,6 +119,20 @@ def run_search(
         else:
             console.print(f"[yellow]fulltext[/yellow] {record.title[:80]} -> {record.status}: {record.error[:120]}")
     cards = build_paper_cards(ranked, full_texts=full_texts, influences=influences)
+    llm_extractions = enhance_paper_cards_with_llm(
+        cards,
+        limit=llm_card_limit,
+        model=llm_model,
+        timeout=llm_timeout,
+    )
+    for record in llm_extractions:
+        if record.status == "ok":
+            console.print(
+                f"[green]llm[/green] {record.title[:80]} -> "
+                f"updated={','.join(record.fields_updated)}"
+            )
+        else:
+            console.print(f"[yellow]llm[/yellow] {record.title[:80]} -> {record.status}: {record.error[:120]}")
     field_map = build_field_map(cards)
     gaps = find_gaps(cards, field_map)
     paper_insights, topic_moc, comparison_matrix = build_research_space(topic, cards, gaps)
@@ -129,6 +147,7 @@ def run_search(
         full_texts=list(full_texts.values()),
         influences=list(influences.values()),
         open_access_records=list(open_access_records.values()),
+        llm_extractions=llm_extractions,
         source_readiness=source_readiness,
         paper_cards=cards,
         paper_insights=paper_insights,

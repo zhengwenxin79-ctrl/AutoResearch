@@ -141,10 +141,25 @@
   - raw results: `openalex=10`, `pubmed=8`, `europepmc=10`, `crossref=9`, `openreview=10`, `arxiv=0`
   - key artifacts: `source_coverage.md`, `topic_moc.md`, `comparison_matrix.md`,
     `gap_evidence_chains.md`, `research_opportunities.md`, `weakness_report.md`
+- Implemented optional LLM-backed Paper Card extraction:
+  - added OpenAI-compatible chat-completions integration controlled by `AUTORESEARCH_LLM_API_KEY`,
+    `AUTORESEARCH_LLM_MODEL`, and optional `AUTORESEARCH_LLM_BASE_URL`
+  - added CLI flags: `--llm-card-limit`, `--llm-model`, and `--llm-timeout`
+  - LLM extraction is disabled by default and safe to skip when no key/model is configured
+  - each LLM-updated field must cite existing evidence snippet IDs; unsupported fields are ignored
+  - added `llm_extractions.json` and an LLM extraction section in `report.md`
+  - added tests for fenced JSON parsing, evidence-id validation, and no-key skip behavior
+- LLM extraction smoke test passed with API keys intentionally unset:
+  - command used `--llm-card-limit 2 --llm-model test-model`
+  - `llm_extractions.json` recorded `2` skipped records with a clear missing-key message
+  - no external LLM request was made
+  - source readiness correctly reported `needs_more_evidence` when the demo was limited to `5`
+    ranked papers, validating the readiness gate behavior
 
 ## Next
 
-- Add LLM-backed PaperCard/PaperInsight extraction with strict evidence references.
+- Add LLM-backed PaperInsight and MOC group refinement with strict evidence references.
+- Add prompt/evaluation fixtures to compare rule-based vs LLM-backed card extraction quality.
 - Add query/source balancing so weak sources do not dominate runtime and source diversity is explicit.
 - Add Papers With Code / benchmark archive support as a dataset and benchmark source, not as a primary paper search source.
 - Add LitSearch-style evaluation for search/ranking quality.
