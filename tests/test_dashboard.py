@@ -28,6 +28,9 @@ def _artifact() -> SearchArtifacts:
                     "source_records": ["openalex"],
                 },
                 relevance_score=0.9,
+                evidence_tier="core",
+                evidence_tier_score_delta=0.18,
+                evidence_tier_reasons=["matched core keyword: lesion"],
             )
         ],
         source_readiness=SourceReadiness(
@@ -41,6 +44,9 @@ def _artifact() -> SearchArtifacts:
                 title="Temporal lesion VLM",
                 problem="lesion-level temporal change reasoning",
                 gap_hint="Validate paired lesion change reasoning.",
+                evidence_tier="core",
+                evidence_tier_score_delta=0.18,
+                evidence_tier_reasons=["matched core keyword: lesion"],
             )
         ],
         field_map=FieldMap(),
@@ -78,6 +84,13 @@ def test_write_dashboard_creates_static_html(tmp_path):
     assert "Gap 证据链" in html
     assert "综合分析" in html
     assert "判断来源" in html
+    assert "证据层级分布" in html
+    assert "核心证据" in html
+    assert "相邻证据" in html
+    assert "噪声/需降权" in html
+    assert "层级原因" in html
+    assert "排序影响" in html
+    assert "命中核心关键词" in html
     assert "Rule-generated" in html
     assert "Codex-reviewed" in html
     assert "LLM 抽取概况" in html

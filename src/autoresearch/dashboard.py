@@ -198,6 +198,12 @@ HTML_TEMPLATE = """<!doctype html>
     .badge.teal { background: #e5f2ee; border-color: #b8d9cf; color: var(--teal); }
     .badge.amber { background: #fbf1dc; border-color: #e6c783; color: var(--amber); }
     .badge.red { background: #fae8e4; border-color: #e5b2aa; color: var(--red); }
+    .badge.gray { background: #eef1ef; border-color: #d5dbd8; color: #59635f; }
+    .tier-note {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
     .kv {
       display: grid;
       grid-template-columns: minmax(120px, 190px) minmax(0, 1fr);
@@ -548,6 +554,77 @@ HTML_TEMPLATE = """<!doctype html>
       return map[value] || value || "不明确";
     };
 
+    const tierMeta = (value) => {
+      const map = {
+        core: {
+          label: "核心证据",
+          badge: "teal",
+          note: "可进入目标领域 Gap 证据链的主要论文",
+        },
+        adjacent: {
+          label: "相邻证据",
+          badge: "amber",
+          note: "与目标方向相关，但更适合作为背景或旁证",
+        },
+        noise: {
+          label: "噪声/需降权",
+          badge: "red",
+          note: "表面相关但不应支撑核心 Gap 判断",
+        },
+        unknown: {
+          label: "未判定",
+          badge: "gray",
+          note: "没有命中当前 profile 的证据层级规则",
+        },
+      };
+      return map[String(value || "unknown")] || map.unknown;
+    };
+
+    const tierReason = (reason) => {
+      let text = String(reason || "");
+      text = text.replace(/^evidence_tier=core$/, "证据层级：核心证据");
+      text = text.replace(/^evidence_tier=adjacent$/, "证据层级：相邻证据");
+      text = text.replace(/^evidence_tier=noise$/, "证据层级：噪声/需降权");
+      text = text.replace(/^evidence_tier=unknown$/, "证据层级：未判定");
+      text = text.replace(/^matched core keyword: (.*)$/i, "命中核心关键词：$1");
+      text = text.replace(/^matched adjacent keyword: (.*)$/i, "命中相邻关键词：$1");
+      text = text.replace(/^matched negative keyword: (.*)$/i, "命中负面/噪声关键词：$1");
+      text = text.replace(/^source_policy=preferred:(.*)$/i, "信息源策略：优先来源 $1");
+      text = text.replace(/^source_policy=neutral:(.*)$/i, "信息源策略：中性来源 $1");
+      text = text.replace(/^source_policy=downrank:(.*)$/i, "信息源策略：降权来源 $1");
+      text = text.replace(/^source_policy=disabled:(.*)$/i, "信息源策略：禁用来源 $1");
+      text = text.replace(
+        "no profile evidence keyword or source policy matched",
+        "未命中 profile 证据关键词或信息源策略"
+      );
+      return zh(text);
+    };
+
+    const joinReasons = (values, fallback = "未记录") => {
+      if (!Array.isArray(values) || values.length === 0) return fallback;
+      return values.filter(Boolean).map(value => esc(tierReason(value))).join("; ");
+    };
+
+    const evidenceTierStats = () => {
+      const stats = { core: 0, adjacent: 0, noise: 0, unknown: 0 };
+      for (const paper of data.paper_cards || []) {
+        const tier = String(paper.evidence_tier || "unknown");
+        stats[tier] = (stats[tier] || 0) + 1;
+      }
+      return stats;
+    };
+
+    const tierBadge = (tier) => {
+      const meta = tierMeta(tier);
+      return `<span class="badge ${meta.badge}">${esc(meta.label)}</span>`;
+    };
+
+    const formatDelta = (value) => {
+      const number = Number(value || 0);
+      const sign = number > 0 ? "+" : "";
+      return `${sign}${number.toFixed(2)}`;
+    };
+
     const translatedLlmError = (error) => {
       const text = String(error || "");
       if (!text) return "";
@@ -595,11 +672,13 @@ HTML_TEMPLATE = """<!doctype html>
       const readiness = data.source_readiness || {};
       const mocCount = data.topic_moc?.problem_spaces?.length || 0;
       const source = judgmentSource();
+      const tiers = evidenceTierStats();
       document.getElementById("topic").textContent = data.topic || "研究主题";
       document.getElementById("generatedAt").textContent = `生成时间：${data.generated_at || "未知"}`;
       document.getElementById("summaryGrid").innerHTML = [
         metric("就绪状态", statusLabel(readiness.status), `${readiness.ranked_papers || 0} 篇入选论文`),
         metric("论文", data.paper_cards?.length || 0, "结构化论文卡片"),
+        metric("核心证据", tiers.core || 0, `相邻 ${tiers.adjacent || 0}；噪声 ${tiers.noise || 0}`),
         metric("MOC 空间", mocCount, "问题空间分组"),
         metric("Gap", data.gaps?.length || 0, "带证据的判断"),
         metric("研究机会", data.research_opportunities?.length || 0, "候选项目方向"),
@@ -654,6 +733,17 @@ HTML_TEMPLATE = """<!doctype html>
 
     const renderOverview = () => {
       const readiness = data.source_readiness || {};
+      const tiers = evidenceTierStats();
+      const tierRows = ["core", "adjacent", "noise", "unknown"].map(tier => {
+        const meta = tierMeta(tier);
+        return `
+          <tr>
+            <td><span class="badge ${meta.badge}">${esc(meta.label)}</span></td>
+            <td>${tiers[tier] || 0}</td>
+            <td>${esc(meta.note)}</td>
+          </tr>
+        `;
+      }).join("");
       const sourceRows = sourceStats().map(row => `
         <tr>
           <td>${esc(row.source)}</td>
@@ -702,6 +792,13 @@ HTML_TEMPLATE = """<!doctype html>
                 <dt>判断依据</dt><dd>${join(readiness.reasons || [])}</dd>
               </dl>
             </article>
+            <h2 style="margin-top:16px;">证据层级分布</h2>
+            <table>
+              <thead>
+                <tr><th>层级</th><th>论文数</th><th>含义</th></tr>
+              </thead>
+              <tbody>${tierRows}</tbody>
+            </table>
             <h2 style="margin-top:16px;">领域配置</h2>
             <article class="card">
               <dl class="kv">
@@ -731,39 +828,54 @@ HTML_TEMPLATE = """<!doctype html>
 
     const renderPapers = () => {
       const papers = (data.paper_cards || []).filter(paperMatches);
-      const cards = papers.map((paper, idx) => `
-        <details class="card fold-card">
-          <summary class="fold-summary">
-            <div>
-              <h3>${idx + 1}. ${esc(paper.title)}</h3>
-              <p class="subtle">${esc(zh(paper.problem || paper.task || "未明确"))}</p>
-              <div class="badge-row">${(paper.coverage_tags || []).slice(0, 6).map(tag => `<span class="badge">${esc(zh(tag))}</span>`).join("")}</div>
+      const cards = papers.map((paper, idx) => {
+        const meta = tierMeta(paper.evidence_tier);
+        const tierReasons = paper.evidence_tier_reasons || [];
+        const coverageBadges = (paper.coverage_tags || [])
+          .slice(0, 6)
+          .map(tag => `<span class="badge">${esc(zh(tag))}</span>`)
+          .join("");
+        return `
+          <details class="card fold-card">
+            <summary class="fold-summary">
+              <div>
+                <h3>${idx + 1}. ${esc(paper.title)}</h3>
+                <p class="subtle">${esc(zh(paper.problem || paper.task || "未明确"))}</p>
+                <div class="badge-row">
+                  ${tierBadge(paper.evidence_tier)}
+                  <span class="badge ${meta.badge}">排序影响 ${esc(formatDelta(paper.evidence_tier_score_delta))}</span>
+                  ${coverageBadges}
+                </div>
+                <div class="tier-note">${esc(meta.note)}</div>
+              </div>
+            </summary>
+            <div class="fold-content">
+            <div class="card-header">
+              <p class="subtle">${esc(paper.year || "n.d.")} ${paper.venue ? `| ${esc(paper.venue)}` : ""}</p>
+              ${paper.url ? `<a class="link-button" href="${esc(paper.url)}">打开原文</a>` : ""}
             </div>
-          </summary>
-          <div class="fold-content">
-          <div class="card-header">
-            <p class="subtle">${esc(paper.year || "n.d.")} ${paper.venue ? `| ${esc(paper.venue)}` : ""}</p>
-            ${paper.url ? `<a class="link-button" href="${esc(paper.url)}">打开原文</a>` : ""}
-          </div>
-          <dl class="kv">
-            <dt>问题空间</dt><dd>${esc(zh(paper.problem))}</dd>
-            <dt>任务</dt><dd>${esc(zh(paper.task))}</dd>
-            <dt>方法族</dt><dd>${esc(zh(paper.method_family))}</dd>
-            <dt>核心假设</dt><dd>${esc(zh(paper.core_assumption))}</dd>
-            <dt>缺失能力</dt><dd>${esc(zh(paper.missing_capability))}</dd>
-            <dt>Gap 提示</dt><dd>${esc(zh(paper.gap_hint))}</dd>
-            <dt>数据集</dt><dd>${esc(zh(paper.dataset))}</dd>
-            <dt>指标</dt><dd>${esc(zh(paper.metrics))}</dd>
-          </dl>
-          <details>
-            <summary>证据片段</summary>
-            <ol class="evidence-list">
-              ${(paper.evidence_snippets || []).map(snippet => `<li><strong>${esc(snippet.claim)}</strong><br>${esc(snippet.snippet)}</li>`).join("") || "<li>暂无证据片段。</li>"}
-            </ol>
+            <dl class="kv">
+              <dt>证据层级</dt><dd>${tierBadge(paper.evidence_tier)} <span class="subtle">排序影响 ${esc(formatDelta(paper.evidence_tier_score_delta))}</span></dd>
+              <dt>层级原因</dt><dd>${joinReasons(tierReasons)}</dd>
+              <dt>问题空间</dt><dd>${esc(zh(paper.problem))}</dd>
+              <dt>任务</dt><dd>${esc(zh(paper.task))}</dd>
+              <dt>方法族</dt><dd>${esc(zh(paper.method_family))}</dd>
+              <dt>核心假设</dt><dd>${esc(zh(paper.core_assumption))}</dd>
+              <dt>缺失能力</dt><dd>${esc(zh(paper.missing_capability))}</dd>
+              <dt>Gap 提示</dt><dd>${esc(zh(paper.gap_hint))}</dd>
+              <dt>数据集</dt><dd>${esc(zh(paper.dataset))}</dd>
+              <dt>指标</dt><dd>${esc(zh(paper.metrics))}</dd>
+            </dl>
+            <details>
+              <summary>证据片段</summary>
+              <ol class="evidence-list">
+                ${(paper.evidence_snippets || []).map(snippet => `<li><strong>${esc(snippet.claim)}</strong><br>${esc(snippet.snippet)}</li>`).join("") || "<li>暂无证据片段。</li>"}
+              </ol>
+            </details>
+            </div>
           </details>
-          </div>
-        </details>
-      `).join("");
+        `;
+      }).join("");
       document.getElementById("papers").innerHTML = `
         <div class="toolbar">
           <div>

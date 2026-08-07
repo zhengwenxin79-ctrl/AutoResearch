@@ -302,10 +302,17 @@
     evidence-tier deltas
   - OpenAlex returned `429 Too Many Requests` and was skipped after the existing failure threshold
   - Codex Review Packet generation succeeded and includes paper-level evidence tiers
+- Added Dashboard evidence-tier display:
+  - summary metrics now include core/adjacent/noise evidence counts
+  - overview page shows a Chinese evidence-tier distribution table with tier meanings
+  - paper cards show `核心证据` / `相邻证据` / `噪声/需降权` / `未判定`
+  - expanded paper cards show ranking delta and translated tier reasons such as matched core
+    keywords and source-policy decisions
+  - regenerated and visually checked the GUI Agent dashboard through a local preview server
+  - validation passed: `.venv/bin/pytest` -> 32 passed; `.venv/bin/ruff check .` -> all checks passed
 
 ## Next
 
-- Add Dashboard display for `core`, `adjacent`, `noise`, and `unknown` evidence tiers.
 - Add source-quality reporting: source -> core / adjacent / noise contribution counts.
 - Use Codex Manual LLM Review v1 on the GUI Agent demo as the standard review loop.
 - Add Codex-reviewed PaperInsight and MOC refinement with strict evidence references.
