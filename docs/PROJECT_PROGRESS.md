@@ -266,11 +266,19 @@
   - AutoResearch should focus on automated evidence collection plus Codex-reviewed research judgment
   - the next small-step workflow is documented in `docs/CODEX_REVIEW_WORKFLOW.md`
   - Dashboard now makes the judgment source visible: `Rule-generated` vs `Codex-reviewed`
+- Planned Profile-Aware Source / Ranker v1 without changing ranking behavior yet:
+  - documented the current drift cause: every profile uses the same sources and ranker still has
+    hard-coded medical/VLM/temporal assumptions
+  - defined source policy, evidence policy, and paper-level evidence tiers:
+    `core`, `adjacent`, `noise`, and `unknown`
+  - proposed an intentionally small implementation order: relevance fixtures, profile policy schema,
+    standalone evidence-tier scoring, then ranker/pipeline/dashboard integration
+  - plan is documented in `docs/PROFILE_AWARE_SOURCE_RANKER_PLAN.md`
 
 ## Next
 
-- Make ranker and source selection profile-aware so non-medical runs avoid irrelevant PubMed /
-  clinical-agent drift.
+- Execute only the first three Profile-Aware Source / Ranker steps: relevance fixtures, profile
+  policy schema, and standalone evidence-tier scoring.
 - Use Codex Manual LLM Review v1 on the GUI Agent demo as the standard review loop.
 - Add Codex-reviewed PaperInsight and MOC refinement with strict evidence references.
 - Add review/evaluation fixtures to compare rule-generated vs Codex-reviewed extraction quality.

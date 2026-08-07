@@ -59,6 +59,9 @@ The detailed workflow is documented in `docs/CODEX_REVIEW_WORKFLOW.md`. Codex Re
 main research-judgment path: automated code collects evidence, and Codex reviews/refines MOC, Gap,
 and research opportunities.
 
+The next search-quality plan is documented in `docs/PROFILE_AWARE_SOURCE_RANKER_PLAN.md`. It keeps
+steps small: first label core/adjacent/noise evidence, then connect the labels to ranking and UI.
+
 Optional Semantic Scholar API key:
 
 ```bash
