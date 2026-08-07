@@ -121,7 +121,11 @@ def _review() -> CodexReviewResult:
 def test_write_codex_review_packet(tmp_path):
     packet_md, packet_json, template_path = write_codex_review_packet(_artifact(), tmp_path)
 
-    assert "Codex Manual LLM Review Packet" in packet_md.read_text(encoding="utf-8")
+    packet_text = packet_md.read_text(encoding="utf-8")
+
+    assert "Codex Manual LLM Review Packet" in packet_text
+    assert "审查问题清单" in packet_text
+    assert "core evidence" in packet_text
     assert "GUI Recovery Benchmark" in packet_json.read_text(encoding="utf-8")
     assert "codex_manual_llm_pass" in template_path.read_text(encoding="utf-8")
 

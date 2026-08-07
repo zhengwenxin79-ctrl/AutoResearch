@@ -77,6 +77,9 @@ def test_write_dashboard_creates_static_html(tmp_path):
     assert "论文卡片" in html
     assert "Gap 证据链" in html
     assert "综合分析" in html
+    assert "判断来源" in html
+    assert "Rule-generated" in html
+    assert "Codex-reviewed" in html
     assert "LLM 抽取概况" in html
     assert "data-tab-go=\"gaps\"" in html
     assert "fold-summary" in html

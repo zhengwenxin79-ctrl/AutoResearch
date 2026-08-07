@@ -55,6 +55,10 @@ autoresearch codex-apply \
   outputs/gui-agent-benchmark-real-world-workflow/codex_review_result.json
 ```
 
+The detailed workflow is documented in `docs/CODEX_REVIEW_WORKFLOW.md`. Codex Review is the current
+main research-judgment path: automated code collects evidence, and Codex reviews/refines MOC, Gap,
+and research opportunities.
+
 Optional Semantic Scholar API key:
 
 ```bash
@@ -67,16 +71,18 @@ Optional Unpaywall email for open-access PDF enrichment:
 export UNPAYWALL_EMAIL="you@example.com"
 ```
 
-Optional evidence-grounded LLM extraction:
+Experimental API-based paper-card extraction:
 
 ```bash
 export AUTORESEARCH_LLM_API_KEY="..."
 export AUTORESEARCH_LLM_MODEL="..."
-# Optional for local or non-default OpenAI-compatible endpoints:
 export AUTORESEARCH_LLM_BASE_URL="https://api.openai.com/v1"
 
 autoresearch search "medical VLM temporal lesion change analysis" --llm-card-limit 5
 ```
+
+This is not the current main path. The main path is Codex Review through `codex-packet` and
+`codex-apply`.
 
 Outputs are written to:
 
@@ -161,6 +167,8 @@ outputs/<topic-slug>/
 - Codex-in-the-loop review mode: `codex-packet` exports evidence for manual Codex review, and
   `codex-apply` imports Codex's structured JSON judgment back into MOC, Gap evidence chains,
   research opportunities, synthesis, reports, and the dashboard.
+- Dashboard clearly marks whether current research judgments are `Rule-generated` or
+  `Codex-reviewed`.
 - Weakness report optimized for research discussion: how each weakness emerges, evidence chain,
   counter evidence, why still open, experimentable idea, and verification plan.
 - Static local dashboard UI for source health, paper cards, MOC problem spaces, gap evidence chains,

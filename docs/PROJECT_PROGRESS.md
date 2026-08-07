@@ -248,11 +248,12 @@
     adjacent evidence instead of forcing medical templates
   - remaining limitation: ranker and source selection can still retrieve adjacent clinical-agent
     papers; this is a source/ranking problem, not a paper-card template problem
-- Reframed the near-term LLM strategy as Codex-in-the-loop before local/remote model automation:
+- Reframed the near-term LLM strategy as Codex-in-the-loop as the main review path:
   - the program collects papers, extracts cards, builds rule-based MOC/Gaps, and packages evidence
   - Codex manually plays the expensive reasoning role: MOC refinement, Gap rewriting, counter-evidence
     resolution, research opportunity design, and next-step planning
-  - the same result schema can later be produced by a local model such as LM Studio, Ollama, or vLLM
+  - local model backends are not part of the current plan; the project should stay controllable
+    through explicit Codex Review packets and user-approved review results
 - Implemented Codex Manual LLM Review v1:
   - added `autoresearch codex-packet <output-dir-or-search_result.json>` to export
     `codex_review_packet.md`, `codex_review_packet.json`, and `codex_review_result.template.json`
@@ -261,15 +262,18 @@
     `gaps`, `research_opportunities`, reports, and `dashboard.html`
   - added validation schemas for Codex MOC groups, refined gaps, opportunities, and synthesis fields
   - added tests for packet export and applying Codex review results
+- Locked the current project direction:
+  - AutoResearch should focus on automated evidence collection plus Codex-reviewed research judgment
+  - the next small-step workflow is documented in `docs/CODEX_REVIEW_WORKFLOW.md`
+  - Dashboard now makes the judgment source visible: `Rule-generated` vs `Codex-reviewed`
 
 ## Next
 
 - Make ranker and source selection profile-aware so non-medical runs avoid irrelevant PubMed /
   clinical-agent drift.
-- Use Codex Manual LLM Review v1 on the GUI Agent demo, then convert the same schema into a local
-  model backend for LM Studio/Ollama/vLLM.
-- Add LLM-backed PaperInsight and MOC group refinement with strict evidence references.
-- Add prompt/evaluation fixtures to compare rule-based vs LLM-backed card extraction quality.
+- Use Codex Manual LLM Review v1 on the GUI Agent demo as the standard review loop.
+- Add Codex-reviewed PaperInsight and MOC refinement with strict evidence references.
+- Add review/evaluation fixtures to compare rule-generated vs Codex-reviewed extraction quality.
 - Add query/source balancing so weak sources do not dominate runtime and source diversity is explicit.
 - Add Papers With Code / benchmark archive support as a dataset and benchmark source, not as a primary paper search source.
 - Add LitSearch-style evaluation for search/ranking quality.

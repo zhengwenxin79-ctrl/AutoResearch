@@ -524,6 +524,25 @@ HTML_TEMPLATE = """<!doctype html>
       return map[text] || text || "未评估";
     };
 
+    const judgmentSource = () => {
+      const mode = String(data.synthesis?.mode || "");
+      const reviewed = mode.includes("codex_manual") || mode.includes("codex_review");
+      if (reviewed) {
+        return {
+          label: "Codex-reviewed",
+          badge: "teal",
+          mode,
+          note: "已通过 Codex Review 写回 MOC、Gap 和研究机会",
+        };
+      }
+      return {
+        label: "Rule-generated",
+        badge: "amber",
+        mode: mode || "rule_generated",
+        note: "当前为规则生成或自动综合，尚未执行 Codex Review",
+      };
+    };
+
     const roleLabel = (value) => {
       const map = { support: "支持", counter: "反证", unclear: "不明确" };
       return map[value] || value || "不明确";
@@ -575,6 +594,7 @@ HTML_TEMPLATE = """<!doctype html>
     const renderSummary = () => {
       const readiness = data.source_readiness || {};
       const mocCount = data.topic_moc?.problem_spaces?.length || 0;
+      const source = judgmentSource();
       document.getElementById("topic").textContent = data.topic || "研究主题";
       document.getElementById("generatedAt").textContent = `生成时间：${data.generated_at || "未知"}`;
       document.getElementById("summaryGrid").innerHTML = [
@@ -584,6 +604,7 @@ HTML_TEMPLATE = """<!doctype html>
         metric("Gap", data.gaps?.length || 0, "带证据的判断"),
         metric("研究机会", data.research_opportunities?.length || 0, "候选项目方向"),
         metric("综合分析", statusLabel(data.synthesis?.status), "Codex 代替 LLM 生成"),
+        metric("判断来源", source.label, source.note),
       ].join("");
     };
 
@@ -592,9 +613,11 @@ HTML_TEMPLATE = """<!doctype html>
       const capabilities = (profile.capability_dimensions || []).map(item => item.name);
       const concepts = profile.core_concepts || [];
       const lenses = profile.gap_lenses || [];
+      const source = judgmentSource();
       document.getElementById("profileStrip").innerHTML = `
         <div>
           <strong>当前领域 Profile：${esc(profile.domain_name || "未配置")}</strong>
+          <span class="badge ${source.badge}">当前判断来源：${esc(source.label)}</span>
           <span class="subtle">核心概念：${join(concepts.slice(0, 8), "未配置")}；能力维度：${join(capabilities.slice(0, 5), "未配置")}</span>
           <span class="subtle">Gap 视角：${join(lenses.slice(0, 6), "未配置")}</span>
         </div>
@@ -895,11 +918,12 @@ HTML_TEMPLATE = """<!doctype html>
         `;
         return;
       }
+      const source = judgmentSource();
       document.getElementById("synthesis").innerHTML = `
         <div class="toolbar">
           <div>
             <h2>综合分析</h2>
-            <p class="subtle">Codex 代替外部 LLM，根据 Profile、MOC、Gap 证据链和研究机会生成。</p>
+            <p class="subtle">当前判断来源：${esc(source.label)}；${esc(source.note)}</p>
           </div>
           <a class="link-button" href="analysis_report.md">查看分析报告</a>
         </div>
@@ -910,6 +934,7 @@ HTML_TEMPLATE = """<!doctype html>
           </div>
           <p>${esc(synthesis.executive_summary)}</p>
           <dl class="kv">
+            <dt>判断来源</dt><dd>${esc(source.label)}（${esc(source.mode)}）</dd>
             <dt>领域理解</dt><dd>${esc(synthesis.domain_interpretation)}</dd>
             <dt>信息源判断</dt><dd>${esc(synthesis.search_assessment)}</dd>
             <dt>证据质量</dt><dd>${esc(synthesis.evidence_quality)}</dd>
