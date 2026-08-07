@@ -71,9 +71,9 @@ def test_write_dashboard_creates_static_html(tmp_path):
     html = path.read_text(encoding="utf-8")
 
     assert path.name == "dashboard.html"
-    assert "AutoResearch Dashboard" in html
-    assert "Paper Cards" in html
-    assert "Gap Evidence Chains" in html
+    assert "AutoResearch 调研看板" in html
+    assert "论文卡片" in html
+    assert "Gap 证据链" in html
 
 
 def test_load_artifacts_accepts_output_directory(tmp_path):

@@ -114,6 +114,8 @@ outputs/<topic-slug>/
   counter evidence, why still open, experimentable idea, and verification plan.
 - Static local dashboard UI for source health, paper cards, MOC problem spaces, gap evidence chains,
   and research opportunities.
+- Dashboard UI labels and rule-generated research signals are localized in Chinese while preserving
+  original paper titles and evidence snippets.
 - Source coverage report and readiness gate for validating search breadth before interpreting
   preliminary weaknesses.
 - Markdown and JSON artifact export.

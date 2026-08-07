@@ -30,7 +30,7 @@ HTML_TEMPLATE = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AutoResearch Dashboard</title>
+  <title>AutoResearch 调研看板</title>
   <style>
     :root {
       --bg: #f7f7f4;
@@ -217,26 +217,26 @@ HTML_TEMPLATE = """<!doctype html>
   <main class="shell">
     <header class="topbar">
       <div>
-        <p class="subtle">AutoResearch Dashboard</p>
-        <h1 id="topic">Research Topic</h1>
+        <p class="subtle">AutoResearch 调研看板</p>
+        <h1 id="topic">研究主题</h1>
         <p class="subtle" id="generatedAt"></p>
       </div>
       <div class="actions">
-        <a class="link-button" href="report.md">Open report</a>
-        <a class="link-button" href="source_coverage.md">Source coverage</a>
-        <a class="link-button" href="gap_evidence_chains.md">Gap chains</a>
-        <a class="link-button" href="research_opportunities.md">Opportunities</a>
+        <a class="link-button" href="report.md">打开报告</a>
+        <a class="link-button" href="source_coverage.md">信息源覆盖</a>
+        <a class="link-button" href="gap_evidence_chains.md">Gap 证据链</a>
+        <a class="link-button" href="research_opportunities.md">研究机会</a>
       </div>
     </header>
 
     <section class="summary-grid" id="summaryGrid"></section>
 
-    <nav class="tabs" aria-label="Dashboard tabs">
-      <button class="tab-button active" data-tab="overview">Overview</button>
-      <button class="tab-button" data-tab="papers">Papers</button>
+    <nav class="tabs" aria-label="看板标签页">
+      <button class="tab-button active" data-tab="overview">总览</button>
+      <button class="tab-button" data-tab="papers">论文</button>
       <button class="tab-button" data-tab="moc">MOC</button>
-      <button class="tab-button" data-tab="gaps">Gaps</button>
-      <button class="tab-button" data-tab="opportunities">Opportunities</button>
+      <button class="tab-button" data-tab="gaps">Gap</button>
+      <button class="tab-button" data-tab="opportunities">机会</button>
     </nav>
 
     <section id="overview" class="section active"></section>
@@ -256,9 +256,214 @@ HTML_TEMPLATE = """<!doctype html>
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
 
-    const join = (values, fallback = "not explicit") => {
+    const translations = new Map([
+      ["lesion-level temporal change reasoning", "病灶级时序变化推理"],
+      ["longitudinal or temporal medical image understanding", "纵向或时序医学影像理解"],
+      ["lesion or finding localization in medical multimodal tasks", "医学多模态任务中的病灶/发现定位"],
+      ["clinical report generation and textual finding description", "临床报告生成与文本化发现描述"],
+      ["single-study medical VLM diagnosis or question answering", "单次检查医学 VLM 诊断或问答"],
+      ["medical AI evaluation and benchmark construction", "医学 AI 评估与 Benchmark 构建"],
+      ["general medical multimodal foundation capability", "通用医学多模态基础能力"],
+      ["temporal change analysis", "时序变化分析"],
+      ["visual question answering", "视觉问答"],
+      ["medical report generation", "医学报告生成"],
+      ["lesion segmentation/localization", "病灶分割/定位"],
+      ["diagnosis/classification", "诊断/分类"],
+      ["general medical AI / multimodal research", "通用医学 AI / 多模态研究"],
+      ["vision-language model", "视觉语言模型"],
+      ["instruction tuning", "指令微调"],
+      ["contrastive/alignment learning", "对比/对齐学习"],
+      ["retrieval-augmented method", "检索增强方法"],
+      ["mask-guided modeling", "Mask 引导建模"],
+      ["lesion- or region-guided modeling", "病灶/区域引导建模"],
+      ["instruction-tuned multimodal modeling", "指令微调多模态建模"],
+      ["contrastive vision-language alignment", "对比式视觉语言对齐"],
+      ["retrieval-augmented multimodal modeling", "检索增强多模态建模"],
+      ["medical vision-language foundation model", "医学视觉语言基础模型"],
+      ["method family not explicit", "方法族未明确"],
+      ["not explicit", "未明确"],
+      ["not explicit in abstract", "摘要中未明确"],
+      ["not explicit in extracted cards", "抽取卡片中未明确"],
+      ["abstract/metadata evidence", "摘要/元数据证据"],
+      ["full-text section evidence", "全文章节证据"],
+      ["dataset named", "命名了数据集"],
+      ["metric named", "命名了指标"],
+      ["evaluation signal present", "存在评估信号"],
+      ["appears to emphasize single-timepoint/static analysis", "看起来强调单时间点/静态分析"],
+      ["dataset/evaluation details are not explicit in metadata or abstract", "元数据或摘要中未明确数据集/评估细节"],
+      ["localized findings can serve as anchors for comparing disease state across time.", "局部发现可以作为跨时间比较疾病状态的锚点。"],
+      ["temporal clinical change can be captured without always requiring explicit lesion anchors.", "时序临床变化不一定总需要显式病灶锚点。"],
+      ["static lesion or region grounding is a useful proxy for downstream clinical reasoning.", "静态病灶或区域 grounding 可作为下游临床推理的代理。"],
+      ["report text quality is a sufficient proxy for clinically meaningful visual understanding.", "报告文本质量可作为临床视觉理解的代理。"],
+      ["single-study recognition performance transfers to richer clinical reasoning workflows.", "单次检查识别能力可以迁移到更复杂的临床推理流程。"],
+      ["broad medical multimodal performance transfers to the target research workflow.", "通用医学多模态能力可以迁移到目标科研工作流。"],
+      ["explicit temporal/change reasoning", "显式时序/变化推理"],
+      ["lesion-level localization or grounding", "病灶级定位或 grounding"],
+      ["capability-specific metrics", "面向具体能力的评估指标"],
+      ["explicit dataset or benchmark context", "明确的数据集或 Benchmark 上下文"],
+      ["not obvious from extracted metadata", "从已抽取元数据中未发现明显缺失"],
+      ["direct candidate for the target problem space", "目标问题空间的直接候选论文"],
+      ["temporal candidate that needs lesion-level grounding comparison", "需要病灶级 grounding 对比的时序候选论文"],
+      ["localization candidate that needs paired temporal comparison", "需要配对时序比较的定位候选论文"],
+      ["evaluation context that may expose benchmark coverage gaps", "可能暴露 Benchmark 覆盖不足的评估上下文"],
+      ["background or adjacent medical VLM evidence", "背景或相邻医学 VLM 证据"],
+      ["The paper may support a gap around missing lesion-grounded temporal reasoning.", "该论文可能支持“缺少病灶 grounding 的时序推理”这一 Gap。"],
+      ["The paper may support a gap between static localization and temporal lesion tracking.", "该论文可能支持“静态定位与时序病灶追踪之间存在断层”这一 Gap。"],
+      ["The paper may support a gap between longitudinal modeling and localized lesion comparison.", "该论文可能支持“纵向建模与局部病灶比较之间存在断层”这一 Gap。"],
+      ["The paper may support a gap around evaluation metrics that miss fine-grained clinical change.", "该论文可能支持“指标无法覆盖细粒度临床变化”这一 Gap。"],
+      ["The paper may support a gap around benchmark comparability and dataset transparency.", "该论文可能支持“Benchmark 可比性和数据集透明度不足”这一 Gap。"],
+      ["Use this paper as possible counter-evidence when testing whether the gap still holds.", "验证 Gap 是否成立时，可将该论文作为潜在反证。"],
+      ["Use this paper to refine the problem-space map before claiming a gap.", "在提出 Gap 前，可用该论文修正问题空间图谱。"],
+      ["temporal or change-oriented signals", "时序或变化信号"],
+      ["lesion, finding, mask, or localization signals", "病灶、发现、Mask 或定位信号"],
+      ["longitudinal or follow-up medical image understanding", "纵向或随访医学影像理解"],
+      ["report-level clinical finding description", "报告级临床发现描述"],
+      ["lesion or finding-level grounding", "病灶或发现级 grounding"],
+      ["explicit dataset, metric, or evaluation framing", "明确的数据集、指标或评估框架"],
+      ["single-study image understanding or medical VQA", "单次检查影像理解或医学 VQA"],
+      ["broad medical multimodal capability context", "通用医学多模态能力背景"],
+      ["Lesion-level temporal reasoning candidates", "病灶级时序推理候选"],
+      ["Longitudinal medical imaging", "纵向医学影像"],
+      ["Medical report generation", "医学报告生成"],
+      ["Lesion localization / grounding", "病灶定位 / Grounding"],
+      ["Benchmark / evaluation", "Benchmark / 评估"],
+      ["Single-image medical VLM diagnosis / VQA", "单图医学 VLM 诊断 / VQA"],
+      ["General medical VLM / foundation work", "通用医学 VLM / 基础工作"],
+      ["Lesion-level temporal reasoning is weakly covered by the retrieved medical VLM literature.", "当前检索到的医学 VLM 文献对病灶级时序推理覆盖较弱。"],
+      ["Evaluation datasets and benchmark protocols are often under-specified or not comparable.", "评估数据集和 Benchmark 协议经常描述不足或不可比较。"],
+      ["Metric coverage appears under-specified for fine-grained clinical change analysis.", "针对细粒度临床变化分析的指标覆盖仍不充分。"],
+      ["Temporal lesion change is central to follow-up diagnosis and treatment response, but many candidate papers surface as single-image diagnosis, report generation, or broad VLM work.", "病灶时序变化对随访诊断和治疗反应评估很关键，但许多候选论文仍主要落在单图诊断、报告生成或宽泛 VLM 工作上。"],
+      ["If dataset and protocol details are not prominent, it is hard to verify whether a claimed capability is actually evaluated under a comparable benchmark.", "如果数据集和协议细节不突出，就很难判断论文声称的能力是否真的在可比较 Benchmark 下被验证。"],
+      ["Temporal lesion analysis needs more than generic text similarity or diagnosis accuracy; it needs finding, location, direction-of-change, and consistency metrics.", "病灶时序分析不能只依赖通用文本相似度或诊断准确率，还需要发现、位置、变化方向和一致性指标。"],
+      ["Build a lesion-localized temporal comparison task with paired studies and explicit change labels.", "构建一个病灶定位的配对时序比较任务，并提供明确变化标签。"],
+      ["Create a benchmark table that normalizes dataset, task, metric, baseline, and temporal pairing details.", "构建统一表格，规范化数据集、任务、指标、Baseline 和时序配对细节。"],
+      ["Evaluate change-label accuracy, finding/location consistency, report similarity, and mask-guided ablations.", "评估变化标签准确率、发现/位置一致性、报告相似度和 Mask 引导消融。"],
+      ["candidate work does not clearly combine temporal/change reasoning with lesion-level localization", "候选工作没有清楚结合时序/变化推理与病灶级定位"],
+      ["paper contains both temporal/change and lesion/localization signals", "论文同时包含时序/变化信号和病灶/定位信号"],
+      ["dataset or benchmark protocol is not explicit in the extracted card", "抽取卡片中没有明确数据集或 Benchmark 协议"],
+      ["paper exposes dataset and benchmark/evaluation signals", "论文暴露了数据集和 Benchmark/评估信号"],
+      ["metric not explicit in the extracted card", "抽取卡片中没有明确指标"],
+      ["paper exposes at least one evaluation metric", "论文至少暴露了一个评估指标"],
+      ["Can lesion-localized visual anchors improve temporal change reasoning in medical VLMs?", "病灶定位视觉锚点能否提升医学 VLM 的时序变化推理？"],
+      ["A model that explicitly compares T1/T2 lesion regions will make fewer finding, location, and change-direction errors than a report-only or image-level VLM baseline.", "相比只做报告或图像级判断的 VLM Baseline，显式比较 T1/T2 病灶区域的模型应当产生更少的发现、位置和变化方向错误。"],
+      ["Use T1 lesion masks or predicted regions as anchors for paired-study visual comparison, then instruction-tune the model on localized temporal change prompts.", "使用 T1 病灶 Mask 或预测区域作为配对检查视觉比较的锚点，再用局部时序变化指令对模型进行微调。"],
+      ["Paired T1/T2 medical images or studies with lesion/finding annotations and change labels.", "带有病灶/发现标注和变化标签的 T1/T2 配对医学图像或检查。"],
+      ["Can a capability-oriented benchmark map make medical VLM claims comparable?", "面向能力的 Benchmark 图谱能否让医学 VLM 的能力声明变得可比较？"],
+      ["Normalizing papers by task, data, temporal pairing, localization, metrics, and baselines will expose evaluation gaps that aggregate benchmark scores hide.", "按任务、数据、时序配对、定位、指标和 Baseline 规范化论文，可以暴露总分型 Benchmark 隐藏的评估缺口。"],
+      ["Build a benchmark coverage matrix that maps each dataset and paper to explicit clinical capabilities rather than only leaderboard-style scores.", "构建 Benchmark 覆盖矩阵，把每个数据集和论文映射到明确临床能力，而不只是 leaderboard 分数。"],
+      ["Metadata and full-text evidence for datasets, metrics, baselines, and task settings.", "关于数据集、指标、Baseline 和任务设置的元数据与全文证据。"],
+      ["Which evaluation metrics actually measure fine-grained clinical change reasoning?", "哪些评估指标真正衡量了细粒度临床变化推理？"],
+      ["Splitting evaluation into finding, location, and change-direction dimensions will reveal failures hidden by generic text similarity or aggregate accuracy.", "把评估拆成发现、位置和变化方向维度，可以暴露通用文本相似度或总体准确率隐藏的失败。"],
+      ["Define a metric suite that separates semantic report quality from localized clinical change correctness.", "定义一组指标，将报告语义质量与局部临床变化正确性分开评估。"],
+      ["Predictions, reference findings, locations, change labels, and optional report text.", "预测结果、参考发现、位置、变化标签，以及可选报告文本。"],
+      ["public paired lesion-change data may be sparse", "公开配对病灶变化数据可能稀缺"],
+      ["mask quality may dominate measured gains", "Mask 质量可能主导观测到的收益"],
+      ["report-derived change labels may contain clinical noise", "从报告中抽取的变化标签可能包含临床噪声"],
+      ["paper-level score table", "论文级分数表"],
+      ["single benchmark leaderboard", "单一 Benchmark 排行榜"],
+      ["manual systematic-review spreadsheet", "人工系统综述表格"],
+      ["metadata-only extraction", "仅元数据抽取"],
+      ["full-text extraction", "全文抽取"],
+      ["without source coverage gate", "不使用信息源覆盖门控"],
+      ["with source coverage gate", "使用信息源覆盖门控"],
+      ["papers may omit benchmark details from accessible text", "论文可能在可访问文本中省略 Benchmark 细节"],
+      ["dataset names may be ambiguous", "数据集名称可能有歧义"],
+      ["benchmark dimensions require expert validation", "Benchmark 维度需要专家验证"],
+      ["BLEU/ROUGE/BERTScore-only report evaluation", "仅 BLEU/ROUGE/BERTScore 的报告评估"],
+      ["diagnosis accuracy-only evaluation", "仅诊断准确率评估"],
+      ["human adjudication sample", "人工裁决样本"],
+      ["without location metric", "不使用位置指标"],
+      ["without change-direction metric", "不使用变化方向指标"],
+      ["without finding consistency metric", "不使用发现一致性指标"],
+      ["metric definitions may need clinician review", "指标定义可能需要临床医生审阅"],
+      ["automated clinical consistency labels may be noisy", "自动临床一致性标签可能有噪声"],
+      ["Which paper group provides the strongest counter-evidence, and does it fully address the target workflow?", "哪一组论文提供了最强反证？它是否完整覆盖目标工作流？"],
+      ["Which missing dimension can be turned into a clean benchmark or ablation?", "哪个缺失维度可以转化为清晰的 Benchmark 或消融实验？"],
+      ["Are existing metrics measuring the target ability or only a nearby proxy?", "现有指标是在衡量目标能力，还是只衡量了相邻代理任务？"],
+      ["change label accuracy", "变化标签准确率"],
+      ["finding consistency", "发现一致性"],
+      ["location consistency", "位置一致性"],
+      ["report similarity as an auxiliary metric", "报告相似度作为辅助指标"],
+      ["failure taxonomy for missed, hallucinated, and wrong-direction changes", "漏检、幻觉和变化方向错误的失败类型分析"],
+      ["dataset coverage table", "数据集覆盖表"],
+      ["benchmark dimension checklist", "Benchmark 维度清单"],
+      ["baseline comparability audit", "Baseline 可比性审计"],
+      ["paired-study availability check", "配对检查数据可用性检查"],
+      ["generic metric vs clinical-consistency metric comparison", "通用指标与临床一致性指标对比"],
+      ["finding/location/change-direction metric split", "发现/位置/变化方向指标拆分"],
+      ["case-level failure analysis", "病例级失败分析"],
+      ["single-study medical VLM", "单次检查医学 VLM"],
+      ["report-generation model without visual localization", "无视觉定位的报告生成模型"],
+      ["paired-image VLM without mask guidance", "无 Mask 引导的配对图像 VLM"],
+      ["text-only report comparison baseline", "纯文本报告比较 Baseline"],
+      ["no mask", "无 Mask"],
+      ["T1 mask guidance", "T1 Mask 引导"],
+      ["predicted mask guidance", "预测 Mask 引导"],
+      ["T2 mask upper bound", "T2 Mask 上界"],
+      ["abstract_only", "仅摘要"],
+      ["full_text_read", "已读全文"],
+      ["temporal_or_change", "时序/变化"],
+      ["lesion_or_localization", "病灶/定位"],
+      ["benchmark_or_evaluation", "Benchmark/评估"],
+      ["dataset_explicit", "数据集明确"],
+      ["dataset_missing", "数据集缺失"],
+      ["metric_explicit", "指标明确"],
+      ["metric_missing", "指标缺失"],
+      ["llm_extracted", "LLM 抽取"],
+    ]);
+
+    const zh = (value) => {
+      let text = String(value ?? "");
+      if (!text) return "";
+      if (translations.has(text)) return translations.get(text);
+      let match = text.match(/^Audit whether (.*) is truly evaluated under the target clinical workflow\\.$/);
+      if (match) return `审查“${zh(match[1])}”是否真的在目标临床工作流中被评估。`;
+      match = text.match(/^Does (.*) cover the target workflow, or only an adjacent proxy\\?$/);
+      if (match) return `“${zh(match[1])}”覆盖的是目标工作流，还是只是相邻代理任务？`;
+      match = text.match(/^Can we validate this hint: (.*)$/);
+      if (match) return `能否验证这个提示：${zh(match[1])}`;
+      match = text.match(/^Is this weakness real after counter-evidence resolution: (.*)$/);
+      if (match) return `在处理反证后，这个弱点是否仍然成立：${zh(match[1])}`;
+      match = text.match(/^dataset: (.*)$/);
+      if (match) return `数据集：${zh(match[1])}`;
+      match = text.match(/^metrics: (.*)$/);
+      if (match) return `指标：${zh(match[1])}`;
+      text = text.replace(/ranked_papers=([0-9]+) meets minimum ([0-9]+)/g, "入选论文数=$1，达到最低要求 $2");
+      text = text.replace(/ranked_papers=([0-9]+) below minimum ([0-9]+)/g, "入选论文数=$1，低于最低要求 $2");
+      text = text.replace(/contributing_sources=([0-9]+) meets minimum ([0-9]+)/g, "贡献来源数=$1，达到最低要求 $2");
+      text = text.replace(/contributing_sources=([0-9]+) below minimum ([0-9]+)/g, "贡献来源数=$1，低于最低要求 $2");
+      text = text.replace(/moc_groups=([0-9]+) meets minimum ([0-9]+)/g, "MOC 分组数=$1，达到最低要求 $2");
+      text = text.replace(/moc_groups=([0-9]+) below minimum ([0-9]+)/g, "MOC 分组数=$1，低于最低要求 $2");
+      text = text.replace(/failed_or_empty_sources=/g, "失败或空结果来源=");
+      text = text.replace(/([0-9]+)[/]([0-9]+) papers support or expose this weakness/g, "$1/$2 篇论文支持或暴露该弱点");
+      text = text.replace(/([0-9]+)[/]([0-9]+) papers provide counter-evidence/g, "$1/$2 篇论文提供反证");
+      text = text.replace("evidence is mostly abstract/metadata-level", "证据主要来自摘要/元数据层面");
+      return text;
+    };
+
+    const join = (values, fallback = "未明确") => {
       if (!Array.isArray(values) || values.length === 0) return fallback;
-      return values.filter(Boolean).map(esc).join("; ");
+      return values.filter(Boolean).map(value => esc(zh(value))).join("; ");
+    };
+
+    const statusLabel = (value) => {
+      const text = String(value || "");
+      const map = {
+        ready_for_preliminary_gap_analysis: "可进入初步 Gap 分析",
+        needs_more_evidence: "证据不足，需继续检索",
+        not_evaluated: "未评估",
+        ok: "成功",
+        failed: "失败",
+        skipped: "已跳过",
+        no_update: "无更新",
+        not_attempted: "未执行",
+      };
+      return map[text] || text || "未评估";
+    };
+
+    const roleLabel = (value) => {
+      const map = { support: "支持", counter: "反证", unclear: "不明确" };
+      return map[value] || value || "不明确";
     };
 
     const sourceStats = () => {
@@ -298,14 +503,14 @@ HTML_TEMPLATE = """<!doctype html>
     const renderSummary = () => {
       const readiness = data.source_readiness || {};
       const mocCount = data.topic_moc?.problem_spaces?.length || 0;
-      document.getElementById("topic").textContent = data.topic || "Research Topic";
-      document.getElementById("generatedAt").textContent = `Generated at ${data.generated_at || "unknown"}`;
+      document.getElementById("topic").textContent = data.topic || "研究主题";
+      document.getElementById("generatedAt").textContent = `生成时间：${data.generated_at || "未知"}`;
       document.getElementById("summaryGrid").innerHTML = [
-        metric("Readiness", readiness.status || "not evaluated", `${readiness.ranked_papers || 0} ranked papers`),
-        metric("Papers", data.paper_cards?.length || 0, "structured paper cards"),
-        metric("MOC Spaces", mocCount, "problem-space groups"),
-        metric("Gaps", data.gaps?.length || 0, "evidence-backed claims"),
-        metric("Opportunities", data.research_opportunities?.length || 0, "candidate projects"),
+        metric("就绪状态", statusLabel(readiness.status), `${readiness.ranked_papers || 0} 篇入选论文`),
+        metric("论文", data.paper_cards?.length || 0, "结构化论文卡片"),
+        metric("MOC 空间", mocCount, "问题空间分组"),
+        metric("Gap", data.gaps?.length || 0, "带证据的判断"),
+        metric("研究机会", data.research_opportunities?.length || 0, "候选项目方向"),
       ].join("");
     };
 
@@ -325,41 +530,41 @@ HTML_TEMPLATE = """<!doctype html>
       const llmRows = (data.llm_extractions || []).map(row => `
         <tr>
           <td>${esc(row.title)}</td>
-          <td><span class="badge ${badgeClass(row.status)}">${esc(row.status)}</span></td>
+          <td><span class="badge ${badgeClass(row.status)}">${esc(statusLabel(row.status))}</span></td>
           <td>${esc(row.model || "n/a")}</td>
-          <td>${join(row.fields_updated, "none")}</td>
+          <td>${join(row.fields_updated, "无")}</td>
         </tr>
       `).join("");
       document.getElementById("overview").innerHTML = `
         <div class="grid-2">
           <section>
-            <h2>Source Health</h2>
+            <h2>信息源健康度</h2>
             <table>
               <thead>
                 <tr>
-                  <th>Source</th><th>Queries</th><th>OK</th><th>Failed</th>
-                  <th>Skipped</th><th>Raw</th><th>Ranked</th>
+                  <th>来源</th><th>查询数</th><th>成功</th><th>失败</th>
+                  <th>跳过</th><th>原始结果</th><th>入选贡献</th>
                 </tr>
               </thead>
               <tbody>${sourceRows}</tbody>
             </table>
           </section>
           <section>
-            <h2>Readiness Gate</h2>
+            <h2>证据就绪判断</h2>
             <article class="card">
               <div class="card-header">
-                <h3>${esc(readiness.status || "not evaluated")}</h3>
-                <span class="badge ${badgeClass(readiness.status)}">${esc(readiness.status || "n/a")}</span>
+                <h3>${esc(statusLabel(readiness.status))}</h3>
+                <span class="badge ${badgeClass(readiness.status)}">${esc(statusLabel(readiness.status))}</span>
               </div>
               <dl class="kv">
-                <dt>Ranked papers</dt><dd>${esc(readiness.ranked_papers || 0)}</dd>
-                <dt>Contributing sources</dt><dd>${esc(readiness.contributing_sources || 0)}</dd>
-                <dt>MOC groups</dt><dd>${esc(readiness.moc_groups || 0)}</dd>
-                <dt>Reasons</dt><dd>${join(readiness.reasons || [])}</dd>
+                <dt>入选论文数</dt><dd>${esc(readiness.ranked_papers || 0)}</dd>
+                <dt>贡献来源数</dt><dd>${esc(readiness.contributing_sources || 0)}</dd>
+                <dt>MOC 分组数</dt><dd>${esc(readiness.moc_groups || 0)}</dd>
+                <dt>判断依据</dt><dd>${join(readiness.reasons || [])}</dd>
               </dl>
             </article>
-            <h2 style="margin-top:16px;">LLM Extraction</h2>
-            ${llmRows ? `<table><thead><tr><th>Paper</th><th>Status</th><th>Model</th><th>Updated</th></tr></thead><tbody>${llmRows}</tbody></table>` : `<div class="empty">LLM extraction was not attempted.</div>`}
+            <h2 style="margin-top:16px;">LLM 抽取状态</h2>
+            ${llmRows ? `<table><thead><tr><th>论文</th><th>状态</th><th>模型</th><th>更新字段</th></tr></thead><tbody>${llmRows}</tbody></table>` : `<div class="empty">本次未执行 LLM 抽取。</div>`}
           </section>
         </div>
       `;
@@ -382,23 +587,23 @@ HTML_TEMPLATE = """<!doctype html>
               <h3>${idx + 1}. ${esc(paper.title)}</h3>
               <p class="subtle">${esc(paper.year || "n.d.")} ${paper.venue ? `| ${esc(paper.venue)}` : ""}</p>
             </div>
-            ${paper.url ? `<a class="link-button" href="${esc(paper.url)}">Open</a>` : ""}
+            ${paper.url ? `<a class="link-button" href="${esc(paper.url)}">打开</a>` : ""}
           </div>
-          <div class="badge-row">${(paper.coverage_tags || []).slice(0, 8).map(tag => `<span class="badge">${esc(tag)}</span>`).join("")}</div>
+          <div class="badge-row">${(paper.coverage_tags || []).slice(0, 8).map(tag => `<span class="badge">${esc(zh(tag))}</span>`).join("")}</div>
           <dl class="kv">
-            <dt>Problem</dt><dd>${esc(paper.problem)}</dd>
-            <dt>Task</dt><dd>${esc(paper.task)}</dd>
-            <dt>Method family</dt><dd>${esc(paper.method_family)}</dd>
-            <dt>Core assumption</dt><dd>${esc(paper.core_assumption)}</dd>
-            <dt>Missing capability</dt><dd>${esc(paper.missing_capability)}</dd>
-            <dt>Gap hint</dt><dd>${esc(paper.gap_hint)}</dd>
-            <dt>Dataset</dt><dd>${esc(paper.dataset)}</dd>
-            <dt>Metrics</dt><dd>${esc(paper.metrics)}</dd>
+            <dt>问题空间</dt><dd>${esc(zh(paper.problem))}</dd>
+            <dt>任务</dt><dd>${esc(zh(paper.task))}</dd>
+            <dt>方法族</dt><dd>${esc(zh(paper.method_family))}</dd>
+            <dt>核心假设</dt><dd>${esc(zh(paper.core_assumption))}</dd>
+            <dt>缺失能力</dt><dd>${esc(zh(paper.missing_capability))}</dd>
+            <dt>Gap 提示</dt><dd>${esc(zh(paper.gap_hint))}</dd>
+            <dt>数据集</dt><dd>${esc(zh(paper.dataset))}</dd>
+            <dt>指标</dt><dd>${esc(zh(paper.metrics))}</dd>
           </dl>
           <details>
-            <summary>Evidence snippets</summary>
+            <summary>证据片段</summary>
             <ol class="evidence-list">
-              ${(paper.evidence_snippets || []).map(snippet => `<li><strong>${esc(snippet.claim)}</strong><br>${esc(snippet.snippet)}</li>`).join("") || "<li>No evidence snippet.</li>"}
+              ${(paper.evidence_snippets || []).map(snippet => `<li><strong>${esc(snippet.claim)}</strong><br>${esc(snippet.snippet)}</li>`).join("") || "<li>暂无证据片段。</li>"}
             </ol>
           </details>
         </article>
@@ -406,12 +611,12 @@ HTML_TEMPLATE = """<!doctype html>
       document.getElementById("papers").innerHTML = `
         <div class="toolbar">
           <div>
-            <h2>Paper Cards</h2>
-            <p class="subtle">${papers.length} visible of ${(data.paper_cards || []).length}</p>
+            <h2>论文卡片</h2>
+            <p class="subtle">当前显示 ${papers.length} / ${(data.paper_cards || []).length} 篇</p>
           </div>
-          <input class="search" id="paperSearch" placeholder="Filter by problem, method, gap hint, title" value="${esc(state.paperFilter)}">
+          <input class="search" id="paperSearch" placeholder="按问题、方法、Gap 提示或标题筛选" value="${esc(state.paperFilter)}">
         </div>
-        ${cards || `<div class="empty">No paper cards match the current filter.</div>`}
+        ${cards || `<div class="empty">没有匹配当前筛选条件的论文卡片。</div>`}
       `;
       document.getElementById("paperSearch").addEventListener("input", (event) => {
         state.paperFilter = event.target.value;
@@ -424,28 +629,28 @@ HTML_TEMPLATE = """<!doctype html>
       document.getElementById("moc").innerHTML = `
         <div class="toolbar">
           <div>
-            <h2>Problem-Space MOC</h2>
-            <p class="subtle">${groups.length} groups built from cross-paper relations</p>
+            <h2>问题空间 MOC</h2>
+            <p class="subtle">基于论文关系构建的 ${groups.length} 个问题空间</p>
           </div>
-          <a class="link-button" href="topic_moc.md">Open Markdown</a>
+          <a class="link-button" href="topic_moc.md">打开 Markdown</a>
         </div>
         <div class="grid-2">
           ${groups.map(group => `
             <article class="card">
               <div class="card-header">
-                <h3>${esc(group.name)}</h3>
-                <span class="badge teal">${esc(group.problem_space)}</span>
+                <h3>${esc(zh(group.name))}</h3>
+                <span class="badge teal">${esc(zh(group.problem_space))}</span>
               </div>
               <dl class="kv">
-                <dt>Representative papers</dt><dd>${join(group.representative_papers)}</dd>
-                <dt>Shared assumptions</dt><dd>${join(group.shared_assumptions)}</dd>
-                <dt>Method families</dt><dd>${join(group.method_families)}</dd>
-                <dt>Missing capabilities</dt><dd>${join(group.missing_capabilities)}</dd>
-                <dt>Open questions</dt><dd>${join(group.open_questions)}</dd>
-                <dt>Possible experiments</dt><dd>${join(group.possible_experiments)}</dd>
+                <dt>代表论文</dt><dd>${join(group.representative_papers)}</dd>
+                <dt>共同假设</dt><dd>${join(group.shared_assumptions)}</dd>
+                <dt>方法族</dt><dd>${join(group.method_families)}</dd>
+                <dt>缺失能力</dt><dd>${join(group.missing_capabilities)}</dd>
+                <dt>开放问题</dt><dd>${join(group.open_questions)}</dd>
+                <dt>可做实验</dt><dd>${join(group.possible_experiments)}</dd>
               </dl>
             </article>
-          `).join("") || `<div class="empty">No MOC problem spaces were generated.</div>`}
+          `).join("") || `<div class="empty">本次未生成 MOC 问题空间。</div>`}
         </div>
       `;
     };
@@ -455,41 +660,41 @@ HTML_TEMPLATE = """<!doctype html>
       document.getElementById("gaps").innerHTML = `
         <div class="toolbar">
           <div>
-            <h2>Gap Evidence Chains</h2>
-            <p class="subtle">Support, counter-evidence, and validation plans are shown together.</p>
+            <h2>Gap 证据链</h2>
+            <p class="subtle">把支持证据、反证和验证计划放在一起看。</p>
           </div>
-          <a class="link-button" href="gap_evidence_chains.md">Open Markdown</a>
+          <a class="link-button" href="gap_evidence_chains.md">打开 Markdown</a>
         </div>
         ${gaps.map((gap, idx) => `
           <article class="card">
             <div class="card-header">
               <div>
-                <h3>Gap ${idx + 1}: ${esc(gap.gap)}</h3>
-                <p class="subtle">${esc(gap.why_it_matters)}</p>
+                <h3>Gap ${idx + 1}: ${esc(zh(gap.gap))}</h3>
+                <p class="subtle">${esc(zh(gap.why_it_matters))}</p>
               </div>
-              <span class="badge ${badgeClass(gap.confidence >= 0.6 ? "ready" : "warn")}">confidence ${esc(gap.confidence)}</span>
+              <span class="badge ${badgeClass(gap.confidence >= 0.6 ? "ready" : "warn")}">置信度 ${esc(gap.confidence)}</span>
             </div>
             <div class="confidence"><span style="width:${Math.round((gap.confidence || 0) * 100)}%"></span></div>
             <dl class="kv">
-              <dt>Coverage</dt><dd>support ${gap.support_count}/${gap.total_papers}; counter ${gap.counter_count}/${gap.total_papers}; unclear ${gap.unclear_count}</dd>
-              <dt>Research opportunity</dt><dd>${esc(gap.research_opportunity)}</dd>
-              <dt>Score reasons</dt><dd>${join(gap.score_reasons)}</dd>
+              <dt>证据覆盖</dt><dd>支持 ${gap.support_count}/${gap.total_papers}; 反证 ${gap.counter_count}/${gap.total_papers}; 不明确 ${gap.unclear_count}</dd>
+              <dt>研究机会</dt><dd>${esc(zh(gap.research_opportunity))}</dd>
+              <dt>评分依据</dt><dd>${join(gap.score_reasons)}</dd>
             </dl>
             <details open>
-              <summary>Evidence chain</summary>
+              <summary>证据链</summary>
               <ol class="evidence-list">
                 ${(gap.evidence_chain || []).map(step => `
                   <li>
                     <strong>${esc(step.paper_title)}</strong>
-                    <span class="badge ${badgeClass(step.role === "counter" ? "no" : "yes")}">${esc(step.role)}</span>
-                    <br>${esc(step.claim)}
-                    ${step.missing_dimensions?.length ? `<br><span class="subtle">Missing: ${join(step.missing_dimensions)}</span>` : ""}
+                    <span class="badge ${badgeClass(step.role === "counter" ? "no" : "yes")}">${esc(roleLabel(step.role))}</span>
+                    <br>${esc(zh(step.claim))}
+                    ${step.missing_dimensions?.length ? `<br><span class="subtle">缺失维度：${join(step.missing_dimensions)}</span>` : ""}
                   </li>
-                `).join("") || "<li>No evidence chain.</li>"}
+                `).join("") || "<li>暂无证据链。</li>"}
               </ol>
             </details>
           </article>
-        `).join("") || `<div class="empty">No gaps were generated.</div>`}
+        `).join("") || `<div class="empty">本次未生成 Gap。</div>`}
       `;
     };
 
@@ -498,32 +703,32 @@ HTML_TEMPLATE = """<!doctype html>
       document.getElementById("opportunities").innerHTML = `
         <div class="toolbar">
           <div>
-            <h2>Research Opportunities</h2>
-            <p class="subtle">Each idea is bound to a previous gap evidence chain.</p>
+            <h2>研究机会</h2>
+            <p class="subtle">每个想法都绑定到前面的 Gap 证据链。</p>
           </div>
-          <a class="link-button" href="research_opportunities.md">Open Markdown</a>
+          <a class="link-button" href="research_opportunities.md">打开 Markdown</a>
         </div>
         <div class="grid-2">
           ${opportunities.map((item, idx) => `
             <article class="card">
               <div class="card-header">
-                <h3>Opportunity ${idx + 1}</h3>
-                <span class="badge teal">evidence-backed</span>
+                <h3>机会 ${idx + 1}</h3>
+                <span class="badge teal">证据支撑</span>
               </div>
               <dl class="kv">
-                <dt>Bound gap</dt><dd>${esc(item.gap)}</dd>
-                <dt>Research question</dt><dd>${esc(item.research_question)}</dd>
-                <dt>Hypothesis</dt><dd>${esc(item.hypothesis)}</dd>
-                <dt>Proposed method</dt><dd>${esc(item.proposed_method)}</dd>
-                <dt>Required data</dt><dd>${esc(item.required_data)}</dd>
-                <dt>Evaluation</dt><dd>${join(item.evaluation_protocol)}</dd>
+                <dt>绑定 Gap</dt><dd>${esc(zh(item.gap))}</dd>
+                <dt>研究问题</dt><dd>${esc(zh(item.research_question))}</dd>
+                <dt>假设</dt><dd>${esc(zh(item.hypothesis))}</dd>
+                <dt>方法设想</dt><dd>${esc(zh(item.proposed_method))}</dd>
+                <dt>所需数据</dt><dd>${esc(zh(item.required_data))}</dd>
+                <dt>评估方案</dt><dd>${join(item.evaluation_protocol)}</dd>
                 <dt>Baselines</dt><dd>${join(item.baselines)}</dd>
                 <dt>Ablations</dt><dd>${join(item.ablations)}</dd>
-                <dt>Risks</dt><dd>${join(item.risks)}</dd>
-                <dt>Evidence refs</dt><dd>${join(item.evidence_refs)}</dd>
+                <dt>风险</dt><dd>${join(item.risks)}</dd>
+                <dt>证据引用</dt><dd>${join(item.evidence_refs)}</dd>
               </dl>
             </article>
-          `).join("") || `<div class="empty">No evidence-backed opportunities were generated.</div>`}
+          `).join("") || `<div class="empty">本次未生成有证据支撑的研究机会。</div>`}
         </div>
       `;
     };

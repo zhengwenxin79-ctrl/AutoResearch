@@ -173,6 +173,14 @@
   - source readiness: `ready_for_preliminary_gap_analysis`
   - arXiv: `1 failed`, `9 skipped`
   - dashboard path: `outputs/medical-vlm-temporal-lesion-change-analysis/dashboard.html`
+- Localized Dashboard UI to Chinese:
+  - translated navigation, metric cards, source table, readiness gate, paper-card field labels,
+    MOC labels, Gap labels, and Research Opportunity labels
+  - added Chinese mappings for common rule-generated signals such as problem spaces, method
+    families, missing capabilities, gap claims, evidence roles, readiness reasons, evaluation
+    items, baselines, ablations, and risks
+  - preserved original paper titles and evidence snippets to avoid distorting source content
+  - regenerated `outputs/medical-vlm-temporal-lesion-change-analysis/dashboard.html`
 
 ## Next
 
