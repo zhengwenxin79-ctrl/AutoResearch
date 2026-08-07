@@ -15,6 +15,7 @@ from .collectors import (
 )
 from .dashboard import write_dashboard
 from .dedupe import dedupe_papers
+from .domain_profile import load_domain_profile
 from .enrichment import enrich_ranked_papers
 from .field_mapper import build_field_map
 from .fulltext import fetch_full_texts
@@ -56,10 +57,16 @@ def run_search(
     llm_card_limit: int = 0,
     llm_model: str = "",
     llm_timeout: float = 45.0,
+    profile: str = "auto",
     console: Console | None = None,
 ) -> tuple[SearchArtifacts, Path]:
     console = console or Console()
-    plan = plan_queries(topic)
+    domain_profile = load_domain_profile(profile, topic)
+    console.print(
+        f"[cyan]profile[/cyan] {domain_profile.domain_id}: "
+        f"{domain_profile.domain_name} ({len(domain_profile.capability_dimensions)} capabilities)"
+    )
+    plan = plan_queries(topic, domain_profile)
     statuses: list[SourceStatus] = []
     warnings: list[str] = []
     papers: list[PaperRecord] = []
@@ -119,7 +126,12 @@ def run_search(
             console.print(f"[green]fulltext[/green] {record.title[:80]} -> {len(record.sections)} sections")
         else:
             console.print(f"[yellow]fulltext[/yellow] {record.title[:80]} -> {record.status}: {record.error[:120]}")
-    cards = build_paper_cards(ranked, full_texts=full_texts, influences=influences)
+    cards = build_paper_cards(
+        ranked,
+        full_texts=full_texts,
+        influences=influences,
+        profile=domain_profile,
+    )
     llm_extractions = enhance_paper_cards_with_llm(
         cards,
         limit=llm_card_limit,
@@ -135,13 +147,19 @@ def run_search(
         else:
             console.print(f"[yellow]llm[/yellow] {record.title[:80]} -> {record.status}: {record.error[:120]}")
     field_map = build_field_map(cards)
-    gaps = find_gaps(cards, field_map)
-    paper_insights, topic_moc, comparison_matrix = build_research_space(topic, cards, gaps)
+    gaps = find_gaps(cards, field_map, profile=domain_profile)
+    paper_insights, topic_moc, comparison_matrix = build_research_space(
+        topic,
+        cards,
+        gaps,
+        profile=domain_profile,
+    )
     source_readiness = evaluate_source_readiness(statuses, ranked, topic_moc)
-    research_opportunities = build_research_opportunities(gaps)
+    research_opportunities = build_research_opportunities(gaps, profile=domain_profile)
 
     artifacts = SearchArtifacts(
         topic=topic,
+        domain_profile=domain_profile,
         query_plan=plan,
         source_statuses=statuses,
         ranked_papers=ranked,

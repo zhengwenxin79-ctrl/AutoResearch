@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from .domain_profile import load_domain_profile
 from .schema import (
     ComparisonMatrix,
     ComparisonRow,
+    DomainProfile,
     EvidenceSnippet,
     GapEvidence,
     MOCGroup,
@@ -12,7 +14,7 @@ from .schema import (
     PaperInsightCard,
     TopicMOC,
 )
-from .utils import clean_text, tokens
+from .utils import clean_text, slugify, tokens
 
 GROUP_TEMPORAL_LESION = "Lesion-level temporal reasoning candidates"
 GROUP_LONGITUDINAL = "Longitudinal medical imaging"
@@ -136,7 +138,18 @@ def _has_tag(card: PaperCard, tag: str) -> bool:
     return tag in card.coverage_tags
 
 
-def group_for_card(card: PaperCard) -> str:
+def _capability_tag(name: str) -> str:
+    return f"capability:{slugify(name)}"
+
+
+def group_for_card(card: PaperCard, profile: DomainProfile | None = None) -> str:
+    if profile and profile.domain_id != "medical-vlm":
+        for dimension in profile.capability_dimensions:
+            if _has_tag(card, _capability_tag(dimension.name)):
+                return f"{profile.domain_name}: {dimension.name}"
+        if _has_tag(card, "benchmark_or_evaluation") or _has_tag(card, "dataset_explicit"):
+            return f"{profile.domain_name}: Benchmark / evaluation"
+        return f"{profile.domain_name}: Adjacent work"
     task = card.task.lower()
     method = card.method.lower()
     if _has_tag(card, "temporal_or_change") and _has_tag(card, "lesion_or_localization"):
@@ -154,6 +167,29 @@ def group_for_card(card: PaperCard) -> str:
     if "visual question answering" in task or "diagnosis" in task or "classification" in task:
         return GROUP_DIAGNOSIS
     return GROUP_GENERAL
+
+
+def _group_problem_space(group: str) -> str:
+    return GROUP_PROBLEM_SPACE.get(group, group.split(": ", 1)[-1])
+
+
+def _group_covered(group: str) -> list[str]:
+    return GROUP_COVERED.get(group, [group.split(": ", 1)[-1]])
+
+
+def _group_missing(group: str) -> list[str]:
+    return GROUP_MISSING.get(group, ["target capability is not explicit in extracted cards"])
+
+
+def _group_assumptions(group: str) -> list[str]:
+    return GROUP_ASSUMPTIONS.get(
+        group,
+        ["A paper-level capability signal transfers to the full target research workflow."],
+    )
+
+
+def _group_solves(group: str) -> list[str]:
+    return GROUP_SOLVES.get(group, [f"Provides evidence related to {_group_problem_space(group)}."])
 
 
 def _primary_evidence(card: PaperCard) -> EvidenceSnippet | None:
@@ -219,6 +255,10 @@ def _relation_to_others(group: str) -> list[str]:
         return [
             "Acts as the closest counter-evidence class for lesion-level temporal reasoning gaps.",
         ]
+    if group not in GROUP_PROBLEM_SPACE:
+        return [
+            "Connects to other groups through shared profile capabilities, benchmarks, or missing dimensions.",
+        ]
     return [
         "Provides background context but needs comparison against task-specific groups.",
     ]
@@ -237,6 +277,8 @@ def _inspiration_for(group: str) -> str:
         return "Normalize datasets, metrics, and baselines into a capability-oriented benchmark table."
     if group == GROUP_DIAGNOSIS:
         return "Test whether static VLM diagnosis capability survives paired temporal comparison."
+    if group not in GROUP_PROBLEM_SPACE:
+        return f"Audit whether {_group_problem_space(group)} is directly evaluated or only mentioned."
     return "Use broad foundation-model claims as context, then isolate a measurable clinical capability."
 
 
@@ -253,13 +295,18 @@ def _experimentable_gap_for(group: str, card: PaperCard) -> str:
         )
     if _has_tag(card, "metric_missing"):
         return "Design metrics that separate generic performance from the target clinical reasoning ability."
+    if group not in GROUP_PROBLEM_SPACE:
+        return f"Build an ablation or benchmark slice for {_group_problem_space(group)}."
     return "Audit whether the claimed capability is evaluated under the target workflow."
 
 
-def build_paper_insights(cards: list[PaperCard]) -> list[PaperInsightCard]:
+def build_paper_insights(
+    cards: list[PaperCard],
+    profile: DomainProfile | None = None,
+) -> list[PaperInsightCard]:
     insights: list[PaperInsightCard] = []
     for card in cards:
-        group = group_for_card(card)
+        group = group_for_card(card, profile)
         insight = PaperInsightCard(
             title=card.title,
             url=card.url,
@@ -267,7 +314,7 @@ def build_paper_insights(cards: list[PaperCard]) -> list[PaperInsightCard]:
             problem=card.problem or f"{card.task} in the {group.lower()} problem space.",
             method_core=card.method_family or card.method,
             evidence=_evidence_summary(card),
-            assumption=card.core_assumption or GROUP_ASSUMPTIONS[group][0],
+            assumption=card.core_assumption or _group_assumptions(group)[0],
             limitation=_limitation_for(card, group),
             relation_to_others=_relation_to_others(group),
             inspiration=card.gap_hint or _inspiration_for(group),
@@ -382,7 +429,10 @@ def _evaluates_location_consistency(cards: list[PaperCard]) -> str:
     return "no"
 
 
-def _problem_space_groups(cards: list[PaperCard], insights: list[PaperInsightCard]) -> list[MOCGroup]:
+def _problem_space_groups(
+    cards: list[PaperCard],
+    insights: list[PaperInsightCard],
+) -> list[MOCGroup]:
     cards_by_title = {card.title: card for card in cards}
     grouped: dict[str, list[PaperInsightCard]] = defaultdict(list)
     for insight in insights:
@@ -394,9 +444,12 @@ def _problem_space_groups(cards: list[PaperCard], insights: list[PaperInsightCar
         missing = _dedupe(_split_capabilities([card.missing_capability for card in group_cards]), limit=6)
         gap_hints = _dedupe([card.gap_hint for card in group_cards], limit=4)
         open_questions = [
-            f"Does {GROUP_PROBLEM_SPACE[group]} cover the target workflow, or only an adjacent proxy?",
-            "Which extracted assumptions would fail under paired-study lesion change evaluation?",
+            f"Does {_group_problem_space(group)} cover the target workflow, or only an adjacent proxy?",
         ]
+        if group in GROUP_PROBLEM_SPACE:
+            open_questions.append("Which extracted assumptions would fail under paired-study lesion change evaluation?")
+        else:
+            open_questions.append("Which extracted assumptions would fail under the target real-world workflow?")
         if gap_hints:
             open_questions.extend(f"Can we validate this hint: {hint}" for hint in gap_hints[:2])
         experiments = _dedupe(
@@ -406,7 +459,7 @@ def _problem_space_groups(cards: list[PaperCard], insights: list[PaperInsightCar
         groups.append(
             MOCGroup(
                 name=group,
-                problem_space=GROUP_PROBLEM_SPACE[group],
+                problem_space=_group_problem_space(group),
                 representative_papers=[insight.title for insight in group_insights[:8]],
                 shared_assumptions=_dedupe([insight.assumption for insight in group_insights], limit=5)
                 or GROUP_ASSUMPTIONS[group],
@@ -423,12 +476,12 @@ def _problem_space_groups(cards: list[PaperCard], insights: list[PaperInsightCar
                     limit=6,
                 )
                 or ["not explicit in extracted cards"],
-                covered_capabilities=GROUP_COVERED[group],
-                missing_capabilities=missing or GROUP_MISSING[group],
+                covered_capabilities=_group_covered(group),
+                missing_capabilities=missing or _group_missing(group),
                 open_questions=open_questions[:6],
                 possible_experiments=experiments or [_experimentable_gap_for(group, group_cards[0])]
                 if group_cards
-                else GROUP_MISSING[group],
+                else _group_missing(group),
                 evidence=[
                     insight.evidence_snippet
                     for insight in group_insights[:3]
@@ -439,10 +492,17 @@ def _problem_space_groups(cards: list[PaperCard], insights: list[PaperInsightCar
     return groups
 
 
-def build_topic_moc(topic: str, cards: list[PaperCard], insights: list[PaperInsightCard], gaps: list[GapEvidence]) -> TopicMOC:
+def build_topic_moc(
+    topic: str,
+    cards: list[PaperCard],
+    insights: list[PaperInsightCard],
+    gaps: list[GapEvidence],
+    profile: DomainProfile | None = None,
+) -> TopicMOC:
+    profile = profile or load_domain_profile("auto", topic)
     return TopicMOC(
         topic=topic,
-        core_concepts=_concepts_from_topic(topic, insights),
+        core_concepts=profile.core_concepts[:16] or _concepts_from_topic(topic, insights),
         paper_groups=_paper_groups(insights),
         problem_spaces=_problem_space_groups(cards, insights),
         common_method_patterns=_common_method_patterns(cards),
@@ -483,16 +543,16 @@ def build_comparison_matrix(cards: list[PaperCard], insights: list[PaperInsightC
         rows.append(
             ComparisonRow(
                 group=group,
-                problem=GROUP_PROBLEM_SPACE[group],
+                problem=_group_problem_space(group),
                 representative_papers=[insight.title for insight in group_insights[:5]],
                 method_families=_dedupe([card.method_family for card in group_cards], limit=5),
                 uses_temporal_input=_capability_state(group_cards, "temporal_or_change"),
                 uses_lesion_localization=_capability_state(group_cards, "lesion_or_localization"),
                 evaluates_change=_capability_state(group_cards, "temporal_or_change"),
                 evaluates_location_consistency=_evaluates_location_consistency(group_cards),
-                solves=GROUP_SOLVES[group],
-                missing=GROUP_MISSING[group],
-                assumptions=GROUP_ASSUMPTIONS[group],
+                solves=_group_solves(group),
+                missing=_group_missing(group),
+                assumptions=_group_assumptions(group),
                 benchmark_or_metrics=_group_benchmark_or_metrics(group_cards),
                 gap_hints=_dedupe([card.gap_hint for card in group_cards], limit=5),
                 evidence=evidence,
@@ -505,9 +565,11 @@ def build_research_space(
     topic: str,
     cards: list[PaperCard],
     gaps: list[GapEvidence],
+    profile: DomainProfile | None = None,
 ) -> tuple[list[PaperInsightCard], TopicMOC, ComparisonMatrix]:
-    insights = build_paper_insights(cards)
-    topic_moc = build_topic_moc(topic, cards, insights, gaps)
+    profile = profile or load_domain_profile("auto", topic)
+    insights = build_paper_insights(cards, profile)
+    topic_moc = build_topic_moc(topic, cards, insights, gaps, profile)
     comparison = build_comparison_matrix(cards, insights)
     return insights, topic_moc, comparison
 

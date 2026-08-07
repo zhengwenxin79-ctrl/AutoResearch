@@ -13,6 +13,31 @@ class QueryPlan(BaseModel):
     perspectives: list[str]
 
 
+class CapabilityDimension(BaseModel):
+    name: str
+    keywords: list[str] = Field(default_factory=list)
+    keyword_groups: list[list[str]] = Field(default_factory=list)
+    description: str = ""
+    required: bool = True
+
+
+class DomainProfile(BaseModel):
+    domain_id: str
+    domain_name: str
+    seed_topic: str = ""
+    description: str = ""
+    core_concepts: list[str] = Field(default_factory=list)
+    query_terms: list[str] = Field(default_factory=list)
+    task_keywords: list[str] = Field(default_factory=list)
+    method_keywords: list[str] = Field(default_factory=list)
+    dataset_keywords: list[str] = Field(default_factory=list)
+    benchmark_keywords: list[str] = Field(default_factory=list)
+    metric_keywords: list[str] = Field(default_factory=list)
+    capability_dimensions: list[CapabilityDimension] = Field(default_factory=list)
+    gap_lenses: list[str] = Field(default_factory=list)
+    generated_by: str = "rule_based"
+
+
 class SourceStatus(BaseModel):
     source: str
     query: str
@@ -276,6 +301,7 @@ class SearchArtifacts(BaseModel):
     generated_at: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z")
     )
+    domain_profile: DomainProfile | None = None
     query_plan: QueryPlan
     source_statuses: list[SourceStatus]
     ranked_papers: list[RankedPaper]
@@ -298,6 +324,10 @@ class SearchArtifacts(BaseModel):
         (output_dir / "search_result.json").write_text(
             self.model_dump_json(indent=2), encoding="utf-8"
         )
+        if self.domain_profile:
+            (output_dir / "domain_profile.json").write_text(
+                self.domain_profile.model_dump_json(indent=2), encoding="utf-8"
+            )
         (output_dir / "paper_cards.json").write_text(
             self.model_dump_json(include={"paper_cards"}, indent=2), encoding="utf-8"
         )

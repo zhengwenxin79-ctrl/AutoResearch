@@ -201,9 +201,38 @@
   - LLM extraction result: `3 failed`, `0 updated`
   - failure reason: OpenAI-compatible endpoint returned `429 Too Many Requests`
   - regenerated `outputs/medical-vlm-temporal-lesion-change-analysis/dashboard.html`
+- Implemented Domain Profile v1:
+  - added `DomainProfile` and `CapabilityDimension` schema objects
+  - added profile generation / loading utilities with `auto`, `medical-vlm`, `gui-agent`,
+    `llm-agent`, and generic fallback profiles
+  - added repository profile seeds: `profiles/medical-vlm.json` and `profiles/gui-agent.json`
+  - added CLI command `autoresearch profile <topic>` to generate an inspectable profile JSON
+  - added `--profile` to `autoresearch search`, accepting profile ids or custom JSON paths
+  - query planning now expands from profile query terms, capability dimensions, benchmark keywords,
+    and metric keywords
+  - paper cards now receive profile-grounded capability tags such as
+    `capability:lesion-level-temporal-change-reasoning` and
+    `capability:real-world-long-horizon-workflow`
+  - Gap Finder now creates profile-grounded coverage gaps plus generic benchmark and metric gaps
+  - non-medical MOC grouping now uses profile capability dimensions instead of medical-only groups
+  - dashboard and Markdown report now show the active Domain Profile
+  - search runs now write `domain_profile.json`
+- Domain Profile smoke tests:
+  - `medical VLM temporal lesion change analysis --profile medical-vlm`: `8` papers, `4` gaps,
+    dashboard regenerated at `outputs/medical-vlm-temporal-lesion-change-analysis/dashboard.html`
+  - Medical VLM gaps now include `lesion-level temporal change reasoning`,
+    `paired-study benchmark coverage`, benchmark protocol, and target-capability metric coverage
+  - `GUI agent benchmark real-world workflow --profile gui-agent`: `8` papers, `4` gaps,
+    dashboard generated at `outputs/gui-agent-benchmark-real-world-workflow/dashboard.html`
+  - GUI Agent gaps include `failure recovery and self-correction`, `environment reproducibility`,
+    benchmark protocol, and target-capability metric coverage
+  - limitation found: GUI Agent run still admits some adjacent medical/clinical agent papers because
+    ranker and source selection are not fully profile-aware yet
 
 ## Next
 
+- Make ranker and source selection profile-aware so non-medical runs avoid irrelevant PubMed /
+  clinical-agent drift.
 - Add LLM-backed PaperInsight and MOC group refinement with strict evidence references.
 - Add prompt/evaluation fixtures to compare rule-based vs LLM-backed card extraction quality.
 - Add query/source balancing so weak sources do not dominate runtime and source diversity is explicit.

@@ -1,0 +1,118 @@
+{
+  "domain_id": "medical-vlm",
+  "domain_name": "Medical VLM",
+  "seed_topic": "medical VLM temporal lesion change analysis",
+  "description": "Medical vision-language and multimodal models for clinical image understanding.",
+  "core_concepts": [
+    "medical VLM",
+    "radiology",
+    "medical imaging",
+    "lesion",
+    "temporal change",
+    "longitudinal study",
+    "report generation"
+  ],
+  "query_terms": [
+    "medical vision-language model",
+    "radiology vision language model",
+    "medical multimodal foundation model",
+    "lesion temporal change",
+    "longitudinal medical image analysis",
+    "medical VLM benchmark dataset"
+  ],
+  "task_keywords": [
+    "temporal change analysis",
+    "visual question answering",
+    "report generation",
+    "lesion segmentation",
+    "diagnosis",
+    "classification"
+  ],
+  "method_keywords": [
+    "vision-language model",
+    "multimodal large language model",
+    "instruction tuning",
+    "contrastive learning",
+    "retrieval augmented",
+    "mask-guided",
+    "region grounding"
+  ],
+  "dataset_keywords": [
+    "MIMIC-CXR",
+    "CheXpert",
+    "PadChest",
+    "NIH ChestXray14",
+    "BraTS",
+    "DeepLesion",
+    "RadImageNet",
+    "PMC-VQA",
+    "ROCO",
+    "CTLesionVQA"
+  ],
+  "benchmark_keywords": [
+    "benchmark",
+    "dataset",
+    "evaluation",
+    "baseline",
+    "leaderboard"
+  ],
+  "metric_keywords": [
+    "accuracy",
+    "AUC",
+    "F1",
+    "BLEU",
+    "ROUGE",
+    "BERTScore",
+    "Dice",
+    "IoU",
+    "change label accuracy",
+    "location consistency"
+  ],
+  "capability_dimensions": [
+    {
+      "name": "lesion-level temporal change reasoning",
+      "keywords": [
+        "temporal",
+        "longitudinal",
+        "follow-up",
+        "change",
+        "progression",
+        "lesion",
+        "finding",
+        "localization",
+        "segmentation",
+        "mask"
+      ],
+      "keyword_groups": [
+        ["temporal", "longitudinal", "follow-up", "change", "progression"],
+        ["lesion", "finding", "localization", "segmentation", "mask"]
+      ],
+      "description": "Whether papers jointly cover temporal/change reasoning and lesion-level grounding.",
+      "required": true
+    },
+    {
+      "name": "paired-study benchmark coverage",
+      "keywords": ["paired", "follow-up", "longitudinal", "benchmark", "dataset", "evaluation"],
+      "keyword_groups": [],
+      "description": "Whether evaluation uses paired or longitudinal clinical studies.",
+      "required": true
+    },
+    {
+      "name": "clinical consistency metrics",
+      "keywords": ["change label accuracy", "finding consistency", "location consistency", "BERTScore"],
+      "keyword_groups": [],
+      "description": "Whether metrics separate finding, location, and change-direction correctness.",
+      "required": true
+    }
+  ],
+  "gap_lenses": [
+    "coverage gap",
+    "benchmark gap",
+    "metric gap",
+    "assumption gap",
+    "contradiction gap",
+    "failure-analysis gap",
+    "real-world-transfer gap"
+  ],
+  "generated_by": "manual_seed"
+}

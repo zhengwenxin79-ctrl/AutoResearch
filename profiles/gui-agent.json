@@ -1,0 +1,100 @@
+{
+  "domain_id": "gui-agent",
+  "domain_name": "GUI Agent",
+  "seed_topic": "GUI agent benchmark real-world workflow",
+  "description": "LLM or multimodal agents that operate GUI, browser, desktop, or mobile workflows.",
+  "core_concepts": [
+    "GUI agent",
+    "web navigation",
+    "desktop control",
+    "mobile agent",
+    "workflow automation",
+    "environment interaction",
+    "failure recovery"
+  ],
+  "query_terms": [
+    "GUI agent benchmark",
+    "web navigation agent benchmark",
+    "desktop control agent",
+    "real-world workflow automation agent",
+    "long-horizon GUI task",
+    "computer use agent evaluation"
+  ],
+  "task_keywords": [
+    "web navigation",
+    "desktop control",
+    "mobile control",
+    "workflow automation",
+    "computer use",
+    "interactive task"
+  ],
+  "method_keywords": [
+    "LLM agent",
+    "multimodal agent",
+    "planning",
+    "reflection",
+    "memory",
+    "tool use",
+    "browser automation",
+    "vision-language model"
+  ],
+  "dataset_keywords": [
+    "WebArena",
+    "OSWorld",
+    "Mind2Web",
+    "MiniWoB++",
+    "AndroidWorld",
+    "VisualWebArena",
+    "WorkArena"
+  ],
+  "benchmark_keywords": [
+    "benchmark",
+    "environment",
+    "task suite",
+    "leaderboard",
+    "evaluation",
+    "simulator"
+  ],
+  "metric_keywords": [
+    "task success rate",
+    "success rate",
+    "step success",
+    "action accuracy",
+    "trajectory length",
+    "recovery rate",
+    "human evaluation"
+  ],
+  "capability_dimensions": [
+    {
+      "name": "real-world long-horizon workflow",
+      "keywords": ["real-world", "workflow", "long-horizon", "multi-step", "desktop", "web", "browser"],
+      "keyword_groups": [],
+      "description": "Whether papers evaluate realistic multi-step workflows rather than toy tasks.",
+      "required": true
+    },
+    {
+      "name": "failure recovery and self-correction",
+      "keywords": ["failure", "recovery", "self-correction", "reflection", "repair", "retry"],
+      "keyword_groups": [],
+      "description": "Whether papers explain and evaluate recovery from GUI/action failures.",
+      "required": true
+    },
+    {
+      "name": "environment reproducibility",
+      "keywords": ["environment", "simulator", "reproducible", "state", "reset", "deterministic"],
+      "keyword_groups": [],
+      "description": "Whether benchmark environments are reproducible and comparable across agents.",
+      "required": true
+    }
+  ],
+  "gap_lenses": [
+    "coverage gap",
+    "benchmark gap",
+    "metric gap",
+    "assumption gap",
+    "contradiction gap",
+    "failure-analysis gap",
+    "real-world-transfer gap"
+  ],
+  "generated_by": "manual_seed"
+}

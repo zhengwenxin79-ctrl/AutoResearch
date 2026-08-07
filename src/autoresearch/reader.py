@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import re
 
+from .domain_profile import load_domain_profile
 from .schema import (
+    CapabilityDimension,
+    DomainProfile,
     EvidenceSnippet,
     FullTextRecord,
     PaperCard,
@@ -10,7 +13,7 @@ from .schema import (
     RankedPaper,
     TextSection,
 )
-from .utils import clean_text
+from .utils import clean_text, slugify
 
 TASK_PATTERNS = [
     (r"(temporal|longitudinal|change).{0,80}(analysis|detection|reasoning)", "temporal change analysis"),
@@ -106,6 +109,34 @@ def _find_terms(text: str, patterns: list[str]) -> list[str]:
     return hits
 
 
+def _profile_patterns(keywords: list[str]) -> list[str]:
+    return [re.escape(keyword) for keyword in keywords if keyword]
+
+
+def _profile_term_hits(text: str, keywords: list[str]) -> list[str]:
+    hits = []
+    for keyword in keywords:
+        if keyword and re.search(re.escape(keyword), text, re.IGNORECASE):
+            hits.append(keyword)
+    return hits
+
+
+def capability_tag(name: str) -> str:
+    return f"capability:{slugify(name)}"
+
+
+def _dimension_covered(text: str, dimension: CapabilityDimension) -> bool:
+    if dimension.keyword_groups:
+        return all(
+            any(keyword and re.search(re.escape(keyword), text, re.IGNORECASE) for keyword in group)
+            for group in dimension.keyword_groups
+        )
+    return any(
+        keyword and re.search(re.escape(keyword), text, re.IGNORECASE)
+        for keyword in dimension.keywords
+    )
+
+
 def _snippet_for(title: str, url: str, text: str, claim: str, section: str = "") -> EvidenceSnippet:
     return EvidenceSnippet(
         paper_title=title,
@@ -196,14 +227,19 @@ def _coverage_tags(
     metrics: list[str],
     limitation: str,
     evidence_source: str,
+    profile: DomainProfile,
 ) -> list[str]:
     tags: list[str] = []
     if _has_any(text, TEMPORAL_PATTERNS):
         tags.append("temporal_or_change")
     if _has_any(text, LESION_PATTERNS):
         tags.append("lesion_or_localization")
-    if _has_any(text, BENCHMARK_PATTERNS):
+    benchmark_patterns = [*BENCHMARK_PATTERNS, *_profile_patterns(profile.benchmark_keywords)]
+    if _has_any(text, benchmark_patterns):
         tags.append("benchmark_or_evaluation")
+    for dimension in profile.capability_dimensions:
+        if _dimension_covered(text, dimension):
+            tags.append(capability_tag(dimension.name))
     if datasets:
         tags.append("dataset_explicit")
     else:
@@ -215,10 +251,13 @@ def _coverage_tags(
     if "single-timepoint" in limitation or "static" in limitation:
         tags.append("static_or_single_timepoint")
     tags.append("full_text_read" if evidence_source == "full text" else "abstract_only")
-    return tags
+    return list(dict.fromkeys(tags))
 
 
-def _problem_for(task: str, coverage_tags: list[str]) -> str:
+def _problem_for(task: str, coverage_tags: list[str], profile: DomainProfile) -> str:
+    for dimension in profile.capability_dimensions:
+        if capability_tag(dimension.name) in coverage_tags:
+            return dimension.name
     if "temporal_or_change" in coverage_tags and "lesion_or_localization" in coverage_tags:
         return "lesion-level temporal change reasoning"
     if "temporal_or_change" in coverage_tags:
@@ -231,7 +270,7 @@ def _problem_for(task: str, coverage_tags: list[str]) -> str:
         return "single-study medical VLM diagnosis or question answering"
     if "benchmark_or_evaluation" in coverage_tags:
         return "medical AI evaluation and benchmark construction"
-    return "general medical multimodal foundation capability"
+    return f"general {profile.domain_name} capability"
 
 
 def _method_family_for(method: str, model_type: str) -> str:
@@ -248,7 +287,14 @@ def _method_family_for(method: str, model_type: str) -> str:
     return "method family not explicit"
 
 
-def _core_assumption_for(task: str, coverage_tags: list[str]) -> str:
+def _core_assumption_for(task: str, coverage_tags: list[str], profile: DomainProfile) -> str:
+    covered = [
+        dimension.name
+        for dimension in profile.capability_dimensions
+        if capability_tag(dimension.name) in coverage_tags
+    ]
+    if covered:
+        return f"{covered[0]} can serve as a proxy for the target {profile.domain_name} workflow."
     if "temporal_or_change" in coverage_tags and "lesion_or_localization" in coverage_tags:
         return "localized findings can serve as anchors for comparing disease state across time."
     if "temporal_or_change" in coverage_tags:
@@ -259,7 +305,7 @@ def _core_assumption_for(task: str, coverage_tags: list[str]) -> str:
         return "report text quality is a sufficient proxy for clinically meaningful visual understanding."
     if task in {"diagnosis/classification", "visual question answering"}:
         return "single-study recognition performance transfers to richer clinical reasoning workflows."
-    return "broad medical multimodal performance transfers to the target research workflow."
+    return f"broad {profile.domain_name} performance transfers to the target research workflow."
 
 
 def _evidence_type_for(
@@ -278,8 +324,11 @@ def _evidence_type_for(
     return "; ".join(parts)
 
 
-def _missing_capability_for(coverage_tags: list[str]) -> str:
+def _missing_capability_for(coverage_tags: list[str], profile: DomainProfile) -> str:
     missing = []
+    for dimension in profile.capability_dimensions:
+        if dimension.required and capability_tag(dimension.name) not in coverage_tags:
+            missing.append(dimension.name)
     if "temporal_or_change" not in coverage_tags:
         missing.append("explicit temporal/change reasoning")
     if "lesion_or_localization" not in coverage_tags:
@@ -288,10 +337,17 @@ def _missing_capability_for(coverage_tags: list[str]) -> str:
         missing.append("capability-specific metrics")
     if "dataset_missing" in coverage_tags:
         missing.append("explicit dataset or benchmark context")
-    return "; ".join(missing) if missing else "not obvious from extracted metadata"
+    return "; ".join(dict.fromkeys(missing)) if missing else "not obvious from extracted metadata"
 
 
-def _relation_to_topic_for(coverage_tags: list[str]) -> str:
+def _relation_to_topic_for(coverage_tags: list[str], profile: DomainProfile) -> str:
+    covered = [
+        dimension.name
+        for dimension in profile.capability_dimensions
+        if capability_tag(dimension.name) in coverage_tags
+    ]
+    if covered:
+        return f"direct evidence for {', '.join(covered[:2])} in the {profile.domain_name} profile"
     has_temporal = "temporal_or_change" in coverage_tags
     has_lesion = "lesion_or_localization" in coverage_tags
     if has_temporal and has_lesion:
@@ -302,7 +358,7 @@ def _relation_to_topic_for(coverage_tags: list[str]) -> str:
         return "localization candidate that needs paired temporal comparison"
     if "benchmark_or_evaluation" in coverage_tags:
         return "evaluation context that may expose benchmark coverage gaps"
-    return "background or adjacent medical VLM evidence"
+    return f"background or adjacent {profile.domain_name} evidence"
 
 
 def _gap_hint_for(problem: str, missing_capability: str, coverage_tags: list[str]) -> str:
@@ -327,19 +383,45 @@ def build_paper_cards(
     ranked: list[RankedPaper],
     full_texts: dict[str, FullTextRecord] | None = None,
     influences: dict[str, PaperInfluence] | None = None,
+    profile: DomainProfile | None = None,
 ) -> list[PaperCard]:
     full_texts = full_texts or {}
     influences = influences or {}
+    profile = profile or load_domain_profile("medical-vlm", "")
+    task_patterns = [
+        *TASK_PATTERNS,
+        *[
+            (pattern, keyword)
+            for pattern, keyword in zip(
+                _profile_patterns(profile.task_keywords),
+                profile.task_keywords,
+                strict=False,
+            )
+        ],
+    ]
+    method_patterns = [
+        *METHOD_PATTERNS,
+        *[(pattern, keyword) for pattern, keyword in zip(_profile_patterns(profile.method_keywords), profile.method_keywords, strict=False)],
+    ]
+    dataset_patterns = [
+        *DATASET_PATTERNS,
+        *_profile_patterns([*profile.dataset_keywords, *profile.benchmark_keywords]),
+    ]
+    metric_patterns = [*METRIC_PATTERNS, *_profile_patterns(profile.metric_keywords)]
     cards: list[PaperCard] = []
     for row in ranked:
         paper = row.paper
         full_text = full_texts.get(paper.title)
         extracted_text, evidence_source = _source_text(paper.abstract, full_text)
         text = f"{paper.title} {paper.abstract} {extracted_text}"
-        task = _first_match(text, TASK_PATTERNS, "general medical AI / multimodal research")
-        method = _first_match(text, METHOD_PATTERNS, "not explicit in abstract")
-        datasets = _find_terms(text, DATASET_PATTERNS)
-        metrics = _find_terms(text, METRIC_PATTERNS)
+        task = _first_match(text, task_patterns, f"general {profile.domain_name} research")
+        method = _first_match(text, method_patterns, "not explicit in abstract")
+        datasets = _profile_term_hits(text, profile.dataset_keywords)
+        if not datasets:
+            datasets = _find_terms(text, DATASET_PATTERNS)
+        metrics = _profile_term_hits(text, profile.metric_keywords)
+        if not metrics:
+            metrics = _find_terms(text, METRIC_PATTERNS)
         limitation = ""
         limitation_scope = " ".join([paper.title, paper.abstract, extracted_text[:5000]])
         if re.search(
@@ -353,7 +435,7 @@ def build_paper_cards(
         contribution = clean_text(paper.abstract or extracted_text, 260)
         best_section = _best_section(
             full_text,
-            [*TASK_PATTERNS, *METHOD_PATTERNS, *DATASET_PATTERNS, *METRIC_PATTERNS],
+            [*task_patterns, *method_patterns, *dataset_patterns, *metric_patterns],
         )
         evidence_text = best_section.text if best_section else paper.abstract
         section = best_section.heading if best_section else "abstract"
@@ -367,15 +449,17 @@ def build_paper_cards(
             )
         ] if evidence_text else []
         field_evidence = {
-            "task": _evidence_for_field(paper.title, paper.url, full_text, paper.abstract, "task", TASK_PATTERNS),
+            "task": _evidence_for_field(
+                paper.title, paper.url, full_text, paper.abstract, "task", task_patterns
+            ),
             "method": _evidence_for_field(
-                paper.title, paper.url, full_text, paper.abstract, "method", METHOD_PATTERNS
+                paper.title, paper.url, full_text, paper.abstract, "method", method_patterns
             ),
             "dataset": _evidence_for_field(
-                paper.title, paper.url, full_text, paper.abstract, "dataset", DATASET_PATTERNS
+                paper.title, paper.url, full_text, paper.abstract, "dataset", dataset_patterns
             ),
             "metrics": _evidence_for_field(
-                paper.title, paper.url, full_text, paper.abstract, "metrics", METRIC_PATTERNS
+                paper.title, paper.url, full_text, paper.abstract, "metrics", metric_patterns
             ),
         }
         field_evidence = {key: value for key, value in field_evidence.items() if value}
@@ -386,13 +470,13 @@ def build_paper_cards(
             if re.search(r"(vlm|vision-language|multimodal)", text, re.IGNORECASE)
             else "not explicit"
         )
-        coverage_tags = _coverage_tags(text, datasets, metrics, limitation, evidence_source)
-        problem = _problem_for(task, coverage_tags)
+        coverage_tags = _coverage_tags(text, datasets, metrics, limitation, evidence_source, profile)
+        problem = _problem_for(task, coverage_tags, profile)
         method_family = _method_family_for(method, model_type)
-        core_assumption = _core_assumption_for(task, coverage_tags)
+        core_assumption = _core_assumption_for(task, coverage_tags, profile)
         evidence_type = _evidence_type_for(evidence_source, datasets, metrics, coverage_tags)
-        missing_capability = _missing_capability_for(coverage_tags)
-        relation_to_topic = _relation_to_topic_for(coverage_tags)
+        missing_capability = _missing_capability_for(coverage_tags, profile)
+        relation_to_topic = _relation_to_topic_for(coverage_tags, profile)
         gap_hint = _gap_hint_for(problem, missing_capability, coverage_tags)
         cards.append(
             PaperCard(

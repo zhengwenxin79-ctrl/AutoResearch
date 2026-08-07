@@ -99,6 +99,7 @@ HTML_TEMPLATE = """<!doctype html>
     .metric-label { color: var(--muted); font-size: 12px; text-transform: uppercase; }
     .metric-value { margin-top: 8px; font-size: 28px; font-weight: 750; letter-spacing: 0; }
     .metric-note { margin-top: 2px; color: var(--muted); font-size: 13px; }
+    .profile-strip,
     .llm-strip {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -111,6 +112,7 @@ HTML_TEMPLATE = """<!doctype html>
       box-shadow: var(--shadow);
       margin-bottom: 18px;
     }
+    .profile-strip strong,
     .llm-strip strong { display: block; margin-bottom: 3px; }
     .llm-strip.ok { border-left: 4px solid var(--teal); }
     .llm-strip.warn { border-left: 4px solid var(--amber); }
@@ -250,7 +252,7 @@ HTML_TEMPLATE = """<!doctype html>
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .toolbar { align-items: stretch; flex-direction: column; }
       .kv { grid-template-columns: 1fr; }
-      .llm-strip { grid-template-columns: 1fr; }
+      .profile-strip, .llm-strip { grid-template-columns: 1fr; }
     }
     @media (max-width: 560px) {
       .shell { padding: 16px; }
@@ -276,6 +278,7 @@ HTML_TEMPLATE = """<!doctype html>
       </div>
     </header>
 
+    <section class="profile-strip" id="profileStrip"></section>
     <section class="summary-grid" id="summaryGrid"></section>
     <section class="llm-strip" id="llmStrip"></section>
 
@@ -458,6 +461,13 @@ HTML_TEMPLATE = """<!doctype html>
       ["metric_explicit", "指标明确"],
       ["metric_missing", "指标缺失"],
       ["llm_extracted", "LLM 抽取"],
+      ["coverage gap", "覆盖不足"],
+      ["benchmark gap", "Benchmark 不足"],
+      ["metric gap", "指标不足"],
+      ["assumption gap", "假设不足"],
+      ["contradiction gap", "结论冲突"],
+      ["failure-analysis gap", "失败分析不足"],
+      ["real-world-transfer gap", "真实场景迁移不足"],
     ]);
 
     const zh = (value) => {
@@ -571,6 +581,21 @@ HTML_TEMPLATE = """<!doctype html>
       ].join("");
     };
 
+    const renderProfileStrip = () => {
+      const profile = data.domain_profile || {};
+      const capabilities = (profile.capability_dimensions || []).map(item => item.name);
+      const concepts = profile.core_concepts || [];
+      const lenses = profile.gap_lenses || [];
+      document.getElementById("profileStrip").innerHTML = `
+        <div>
+          <strong>当前领域 Profile：${esc(profile.domain_name || "未配置")}</strong>
+          <span class="subtle">核心概念：${join(concepts.slice(0, 8), "未配置")}；能力维度：${join(capabilities.slice(0, 5), "未配置")}</span>
+          <span class="subtle">Gap 视角：${join(lenses.slice(0, 6), "未配置")}</span>
+        </div>
+        <button class="link-button" data-tab-go="overview" type="button">查看领域配置</button>
+      `;
+    };
+
     const renderLlmStrip = () => {
       const records = data.llm_extractions || [];
       const counts = records.reduce((acc, row) => {
@@ -646,6 +671,18 @@ HTML_TEMPLATE = """<!doctype html>
                 <dt>贡献来源数</dt><dd>${esc(readiness.contributing_sources || 0)}</dd>
                 <dt>MOC 分组数</dt><dd>${esc(readiness.moc_groups || 0)}</dd>
                 <dt>判断依据</dt><dd>${join(readiness.reasons || [])}</dd>
+              </dl>
+            </article>
+            <h2 style="margin-top:16px;">领域配置</h2>
+            <article class="card">
+              <dl class="kv">
+                <dt>领域</dt><dd>${esc(data.domain_profile?.domain_name || "未配置")}</dd>
+                <dt>Profile ID</dt><dd>${esc(data.domain_profile?.domain_id || "n/a")}</dd>
+                <dt>核心概念</dt><dd>${join(data.domain_profile?.core_concepts || [])}</dd>
+                <dt>能力维度</dt><dd>${join((data.domain_profile?.capability_dimensions || []).map(item => item.name))}</dd>
+                <dt>Benchmark 关键词</dt><dd>${join(data.domain_profile?.benchmark_keywords || [])}</dd>
+                <dt>Metric 关键词</dt><dd>${join(data.domain_profile?.metric_keywords || [])}</dd>
+                <dt>Gap 视角</dt><dd>${join(data.domain_profile?.gap_lenses || [])}</dd>
               </dl>
             </article>
             <h2 style="margin-top:16px;">LLM 抽取状态</h2>
@@ -845,6 +882,7 @@ HTML_TEMPLATE = """<!doctype html>
     };
 
     const renderAll = () => {
+      renderProfileStrip();
       renderSummary();
       renderLlmStrip();
       renderOverview();

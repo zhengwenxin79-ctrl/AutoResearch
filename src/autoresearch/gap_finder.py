@@ -3,7 +3,10 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 
+from .domain_profile import load_domain_profile
 from .schema import (
+    CapabilityDimension,
+    DomainProfile,
     EvidenceSnippet,
     FieldMap,
     GapEvidence,
@@ -12,6 +15,7 @@ from .schema import (
     PaperCard,
     ResearchOpportunity,
 )
+from .utils import slugify
 
 FULL_TEXT_SECTIONS = {
     "methods",
@@ -30,6 +34,14 @@ FULL_TEXT_SECTIONS = {
 
 def _has_tag(card: PaperCard, tag: str) -> bool:
     return tag in card.coverage_tags
+
+
+def _capability_tag(name: str) -> str:
+    return f"capability:{slugify(name)}"
+
+
+def _has_capability(card: PaperCard, dimension: CapabilityDimension) -> bool:
+    return _has_tag(card, _capability_tag(dimension.name))
 
 
 def _first_evidence(card: PaperCard, claim: str) -> EvidenceSnippet:
@@ -96,6 +108,12 @@ def _missing_metric(card: PaperCard) -> list[str]:
     if not _has_tag(card, "metric_explicit"):
         return ["metric not explicit"]
     return []
+
+
+def _missing_capability_dimension(card: PaperCard, dimension: CapabilityDimension) -> list[str]:
+    if _has_capability(card, dimension):
+        return []
+    return [f"{dimension.name} not explicit"]
 
 
 def _judge_card(
@@ -260,11 +278,45 @@ def _build_gap(
     )
 
 
-def find_gaps(cards: list[PaperCard], field_map: FieldMap) -> list[GapEvidence]:
+def _profile_capability_gaps(
+    cards: list[PaperCard],
+    profile: DomainProfile,
+) -> list[GapEvidence]:
     gaps: list[GapEvidence] = []
+    for dimension in profile.capability_dimensions:
+        gap = _build_gap(
+            gap=f"{profile.domain_name}: {dimension.name} is weakly covered by the retrieved literature.",
+            cards=cards,
+            support_predicate=lambda c, d=dimension: not _has_capability(c, d),
+            counter_predicate=lambda c, d=dimension: _has_capability(c, d),
+            support_claim=f"{dimension.name} is not explicit in the extracted card",
+            counter_claim=f"paper contains evidence for {dimension.name}",
+            missing_builder=lambda c, d=dimension: _missing_capability_dimension(c, d),
+            why_it_matters=(
+                dimension.description
+                or f"{dimension.name} is part of the target {profile.domain_name} research workflow."
+            ),
+            research_opportunity=(
+                f"Design a method, benchmark, or evaluation protocol that directly tests {dimension.name} "
+                f"for {profile.domain_name}."
+            ),
+            base=0.38,
+        )
+        if gap:
+            gaps.append(gap)
+    return gaps
+
+
+def find_gaps(
+    cards: list[PaperCard],
+    field_map: FieldMap,
+    profile: DomainProfile | None = None,
+) -> list[GapEvidence]:
+    profile = profile or load_domain_profile("medical-vlm", "")
+    gaps: list[GapEvidence] = _profile_capability_gaps(cards, profile)[:2]
 
     lesion_temporal_gap = _build_gap(
-        gap="Lesion-level temporal reasoning is weakly covered by the retrieved medical VLM literature.",
+        gap="Medical VLM: lesion-level temporal reasoning is weakly covered by the retrieved literature.",
         cards=cards,
         support_predicate=lambda c: not (
             _has_tag(c, "temporal_or_change") and _has_tag(c, "lesion_or_localization")
@@ -281,11 +333,15 @@ def find_gaps(cards: list[PaperCard], field_map: FieldMap) -> list[GapEvidence]:
         research_opportunity="Build a lesion-localized temporal comparison task with paired studies and explicit change labels.",
         base=0.38,
     )
-    if lesion_temporal_gap:
+    if (
+        lesion_temporal_gap
+        and profile.domain_id == "medical-vlm"
+        and not any("lesion-level temporal" in gap.gap for gap in gaps)
+    ):
         gaps.append(lesion_temporal_gap)
 
     dataset_gap = _build_gap(
-        gap="Evaluation datasets and benchmark protocols are often under-specified or not comparable.",
+        gap=f"{profile.domain_name}: evaluation datasets and benchmark protocols are often under-specified or not comparable.",
         cards=cards,
         support_predicate=lambda c: _has_tag(c, "dataset_missing") or not _has_tag(c, "benchmark_or_evaluation"),
         counter_predicate=lambda c: _has_tag(c, "dataset_explicit") and _has_tag(c, "benchmark_or_evaluation"),
@@ -293,11 +349,11 @@ def find_gaps(cards: list[PaperCard], field_map: FieldMap) -> list[GapEvidence]:
         counter_claim="paper exposes dataset and benchmark/evaluation signals",
         missing_builder=_missing_dataset_benchmark,
         why_it_matters=(
-            "If dataset and protocol details are not prominent, it is hard to verify whether a claimed capability "
-            "is actually evaluated under a comparable benchmark."
+            f"If dataset and protocol details are not prominent, it is hard to verify whether a claimed "
+            f"{profile.domain_name} capability is actually evaluated under a comparable benchmark."
         ),
         research_opportunity=(
-            "Create a benchmark table that normalizes dataset, task, metric, baseline, and temporal pairing details."
+            "Create a benchmark table that normalizes dataset, task, metric, baseline, and target-capability details."
         ),
         base=0.4,
     )
@@ -305,7 +361,7 @@ def find_gaps(cards: list[PaperCard], field_map: FieldMap) -> list[GapEvidence]:
         gaps.append(dataset_gap)
 
     metric_gap = _build_gap(
-        gap="Metric coverage appears under-specified for fine-grained clinical change analysis.",
+        gap=f"{profile.domain_name}: metric coverage appears under-specified for target-capability analysis.",
         cards=cards,
         support_predicate=lambda c: _has_tag(c, "metric_missing"),
         counter_predicate=lambda c: _has_tag(c, "metric_explicit"),
@@ -313,21 +369,80 @@ def find_gaps(cards: list[PaperCard], field_map: FieldMap) -> list[GapEvidence]:
         counter_claim="paper exposes at least one evaluation metric",
         missing_builder=_missing_metric,
         why_it_matters=(
-            "Temporal lesion analysis needs more than generic text similarity or diagnosis accuracy; it needs "
-            "finding, location, direction-of-change, and consistency metrics."
+            f"{profile.domain_name} research needs metrics that measure the target capability directly, not only "
+            "nearby proxy scores."
         ),
         research_opportunity=(
-            "Evaluate change-label accuracy, finding/location consistency, report similarity, and mask-guided ablations."
+            "Compare generic metrics against capability-specific metrics and add failure-type analysis."
         ),
         base=0.36,
     )
     if metric_gap:
         gaps.append(metric_gap)
 
-    return gaps[:3]
+    return gaps[:5]
 
 
-def _opportunity_for_gap(gap: GapEvidence) -> ResearchOpportunity:
+def _generic_opportunity_for_gap(gap: GapEvidence, profile: DomainProfile) -> ResearchOpportunity:
+    evidence_refs = [step.paper_title for step in gap.evidence_chain if step.role == "support"][:5]
+    lowered = gap.gap.lower()
+    if "evaluation datasets" in lowered or "benchmark protocols" in lowered:
+        capability = "benchmark comparability"
+    elif "metric coverage" in lowered:
+        capability = "capability-specific metric coverage"
+    else:
+        capability = gap.gap.split(":", 1)[-1].replace(
+            "is weakly covered by the retrieved literature.",
+            "",
+        ).strip(" .")
+    return ResearchOpportunity(
+        gap=gap.gap,
+        research_question=f"Can we directly evaluate and improve {capability} in {profile.domain_name}?",
+        hypothesis=(
+            f"A capability-oriented method or benchmark for {profile.domain_name} will expose failures that "
+            "generic aggregate scores hide."
+        ),
+        proposed_method=(
+            "Build a profile-grounded comparison table, identify missing capability dimensions, then design "
+            "a targeted benchmark or ablation that isolates the weakest dimension."
+        ),
+        innovations_bound_to_gap=[
+            "The proposed capability is emitted only because the evidence chain shows missing or weak coverage.",
+            "The benchmark or evaluation design is bound to profile dimensions rather than generic paper summaries.",
+        ],
+        required_data=(
+            "Papers, datasets, benchmark protocols, and prediction traces that cover the selected profile dimensions."
+        ),
+        evaluation_protocol=[
+            "capability coverage table",
+            "benchmark comparability audit",
+            "capability-specific metric split",
+            "failure-type analysis",
+        ],
+        baselines=[
+            "paper-level summary table",
+            "single benchmark leaderboard",
+            "generic aggregate metric evaluation",
+        ],
+        ablations=[
+            "metadata-only extraction",
+            "full-text extraction",
+            "without domain profile",
+            "with domain profile",
+        ],
+        risks=[
+            "profile keywords may miss important subareas",
+            "papers may omit benchmark details from accessible text",
+            "capability dimensions need expert validation",
+        ],
+        evidence_refs=evidence_refs,
+    )
+
+
+def _opportunity_for_gap(gap: GapEvidence, profile: DomainProfile | None = None) -> ResearchOpportunity:
+    profile = profile or load_domain_profile("medical-vlm", "")
+    if profile.domain_id != "medical-vlm":
+        return _generic_opportunity_for_gap(gap, profile)
     evidence_refs = [step.paper_title for step in gap.evidence_chain if step.role == "support"][:5]
     lowered = gap.gap.lower()
     if "temporal" in lowered or "lesion" in lowered:
@@ -455,11 +570,14 @@ def _opportunity_for_gap(gap: GapEvidence) -> ResearchOpportunity:
     )
 
 
-def build_research_opportunities(gaps: list[GapEvidence]) -> list[ResearchOpportunity]:
+def build_research_opportunities(
+    gaps: list[GapEvidence],
+    profile: DomainProfile | None = None,
+) -> list[ResearchOpportunity]:
     opportunities = []
     for gap in gaps:
         support_steps = [step for step in gap.evidence_chain if step.role == "support"]
         if len(support_steps) < 2:
             continue
-        opportunities.append(_opportunity_for_gap(gap))
+        opportunities.append(_opportunity_for_gap(gap, profile))
     return opportunities

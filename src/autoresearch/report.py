@@ -461,9 +461,30 @@ def write_report(artifacts: SearchArtifacts, output_dir: Path) -> Path:
         "",
         f"Generated at: `{artifacts.generated_at}`",
         "",
-        "## 1. Query Plan",
+        "## Domain Profile",
         "",
     ]
+    if artifacts.domain_profile:
+        profile = artifacts.domain_profile
+        lines.extend(
+            [
+                f"- Domain: `{profile.domain_name}`",
+                f"- Profile ID: `{profile.domain_id}`",
+                f"- Core concepts: {_join(profile.core_concepts[:10])}",
+                "- Capability dimensions: "
+                + _join([dimension.name for dimension in profile.capability_dimensions[:10]]),
+                f"- Gap lenses: {_join(profile.gap_lenses[:10])}",
+                "",
+            ]
+        )
+    else:
+        lines.extend(["- Domain profile was not configured.", ""])
+    lines.extend(
+        [
+        "## 1. Query Plan",
+        "",
+        ]
+    )
     for query in artifacts.query_plan.queries:
         lines.append(f"- `{query}`")
 

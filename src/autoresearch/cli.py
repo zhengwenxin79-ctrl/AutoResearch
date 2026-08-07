@@ -6,7 +6,9 @@ import typer
 from rich.console import Console
 
 from .dashboard import load_artifacts, write_dashboard
+from .domain_profile import generate_domain_profile, save_domain_profile
 from .pipeline import run_search
+from .utils import slugify
 
 app = typer.Typer(help="AutoResearch command line interface.", no_args_is_help=True)
 console = Console()
@@ -52,6 +54,10 @@ def search(
         45.0,
         help="Timeout in seconds for each LLM-backed paper card extraction request.",
     ),
+    profile: str = typer.Option(
+        "auto",
+        help="Domain profile id or JSON path. Use 'auto', 'medical-vlm', 'gui-agent', or a profile file.",
+    ),
 ) -> None:
     """Run Auto Search for a research topic."""
     artifacts, output_dir = run_search(
@@ -66,6 +72,7 @@ def search(
         llm_card_limit=llm_card_limit,
         llm_model=llm_model,
         llm_timeout=llm_timeout,
+        profile=profile,
         console=console,
     )
     console.print()
@@ -74,6 +81,28 @@ def search(
     console.print(f"Gaps: {len(artifacts.gaps)}")
     console.print(f"Report: {output_dir / 'report.md'}")
     console.print(f"Dashboard: {output_dir / 'dashboard.html'}")
+
+
+@app.command("profile")
+def profile_command(
+    topic: str = typer.Argument(..., help="Research topic or direction."),
+    profile_id: str = typer.Option(
+        "auto",
+        help="Profile id to use or infer. Examples: auto, medical-vlm, gui-agent, llm-agent.",
+    ),
+    output_path: Path | None = typer.Option(  # noqa: B008
+        None,
+        help="Where to write the generated profile JSON.",
+    ),
+) -> None:
+    """Generate or inspect a domain profile for a research topic."""
+    profile = generate_domain_profile(topic, profile_id)
+    target = output_path or Path("profiles") / f"{slugify(profile.domain_id)}.generated.json"
+    path = save_domain_profile(profile, target)
+    console.print(f"[bold green]Done[/bold green] wrote domain profile to {path}")
+    console.print(f"Domain: {profile.domain_name}")
+    console.print(f"Capabilities: {len(profile.capability_dimensions)}")
+    console.print("Core concepts: " + ", ".join(profile.core_concepts[:8]))
 
 
 @app.command()

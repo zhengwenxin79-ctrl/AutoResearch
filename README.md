@@ -20,6 +20,19 @@ pip install -e .
 autoresearch search "medical VLM temporal lesion change analysis" --limit 20 --full-text-limit 6
 ```
 
+AutoResearch can run with an explicit domain profile:
+
+```bash
+autoresearch search "medical VLM temporal lesion change analysis" --profile medical-vlm
+autoresearch search "GUI agent benchmark real-world workflow" --profile gui-agent
+```
+
+To generate a profile from a topic before running search:
+
+```bash
+autoresearch profile "GUI agent benchmark real-world workflow"
+```
+
 To regenerate the UI from an existing run:
 
 ```bash
@@ -54,6 +67,7 @@ Outputs are written to:
 ```text
 outputs/<topic-slug>/
   dashboard.html
+  domain_profile.json
   raw/
   source_coverage.md
   search_result.json
@@ -78,6 +92,9 @@ outputs/<topic-slug>/
 ## Current MVP
 
 - Query planning from a high-level research direction.
+- Domain Profile v1: `auto`, `medical-vlm`, `gui-agent`, `llm-agent`, or a custom JSON profile can
+  define core concepts, query terms, capability dimensions, benchmark keywords, metric keywords, and
+  gap lenses before search starts.
 - Multi-source paper collection from arXiv, OpenAlex, PubMed, Europe PMC, CrossRef, and OpenReview.
 - Failure-tolerant source execution with warnings.
 - DOI / PMID / arXiv / OpenAlex / fuzzy-title deduplication.
@@ -91,6 +108,9 @@ outputs/<topic-slug>/
   of study, venue, and open-access PDF links.
 - Unpaywall enrichment for DOI-based open-access landing pages and PDF links.
 - Paper card extraction from title, abstract, metadata, and section-aware full text when available.
+- Profile-grounded paper card coverage tags, including capability-specific tags such as
+  `capability:real-world-long-horizon-workflow` or
+  `capability:lesion-level-temporal-change-reasoning`.
 - Paper Card v2 fields with problem, method family, core assumption, evidence type, missing
   capability, relation-to-topic, gap hint, per-field evidence snippets, extraction status, and
   coverage tags.
@@ -107,6 +127,8 @@ outputs/<topic-slug>/
 - Lightweight field mapping by task, method, dataset, metric, and model type.
 - Evidence-grounded gap finding with source URLs, snippets, section labels, support/counter counts,
   and confidence score reasons.
+- Profile-grounded Gap Finder that can generate coverage, benchmark, and metric gaps for the
+  selected domain instead of only using the medical VLM demo rules.
 - Gap Evidence Chain v2 paper-level judgments: each paper is marked as support, counter, or unclear
   for each gap, with missing evidence and influence signals.
 - Gap evidence chain Markdown export plus evidence-backed research opportunity generation.
@@ -117,6 +139,8 @@ outputs/<topic-slug>/
 - Dashboard UI labels and rule-generated research signals are localized in Chinese while preserving
   original paper titles and evidence snippets.
 - Dashboard top actions switch between Chinese in-page tabs instead of jumping to Markdown exports.
+- Dashboard shows the active Domain Profile, core concepts, capability dimensions, benchmark/metric
+  keywords, and gap lenses.
 - Paper cards, MOC problem spaces, Gap evidence chains, and research opportunities are expandable
   detail panels, with an LLM extraction summary shown at the top of the page.
 - Source coverage report and readiness gate for validating search breadth before interpreting
