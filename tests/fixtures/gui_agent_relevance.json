@@ -1,0 +1,42 @@
+[
+  {
+    "title": "MobileUse: A Benchmark for GUI Agents in Mobile Environments",
+    "abstract": "MobileUse evaluates mobile GUI agents on AndroidWorld-style multi-step tasks and reports task success rate.",
+    "source": "arxiv",
+    "source_records": ["arxiv"],
+    "expected_tier": "core",
+    "reason": "direct mobile GUI agent benchmark paper"
+  },
+  {
+    "title": "LongHorizonUI: Evaluating Computer Use Agents on Real-World Desktop Workflows",
+    "abstract": "The benchmark measures long-horizon GUI task completion, desktop control, web navigation, and failure recovery.",
+    "source": "openreview",
+    "source_records": ["openreview"],
+    "expected_tier": "core",
+    "reason": "direct long-horizon GUI workflow benchmark paper"
+  },
+  {
+    "title": "GUI-ReWalk: Benchmarking Failure Recovery for Browser Agents",
+    "abstract": "GUI-ReWalk studies browser agent recovery on WebArena and OSWorld tasks with trajectory-level failure analysis.",
+    "source": "openalex",
+    "source_records": ["openalex"],
+    "expected_tier": "core",
+    "reason": "direct GUI agent failure-recovery evidence"
+  },
+  {
+    "title": "VX: A Desktop Genome Viewer Workflow Agent",
+    "abstract": "We build a desktop workflow automation agent for interactive genome viewer tasks, but the paper focuses on a narrow scientific application.",
+    "source": "crossref",
+    "source_records": ["crossref"],
+    "expected_tier": "adjacent",
+    "reason": "desktop workflow evidence, but not a core GUI agent benchmark"
+  },
+  {
+    "title": "Clinical Workflow Agents for PET/CT Triage",
+    "abstract": "This clinical system supports PET/CT patient triage and diagnosis workflows in radiology departments.",
+    "source": "pubmed",
+    "source_records": ["pubmed"],
+    "expected_tier": "noise",
+    "reason": "medical workflow paper that should not support GUI Agent gaps"
+  }
+]

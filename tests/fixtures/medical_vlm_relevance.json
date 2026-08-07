@@ -1,0 +1,34 @@
+[
+  {
+    "title": "Temporal Lesion Change Analysis with Medical Vision-Language Models",
+    "abstract": "We study longitudinal radiology exams with lesion-level grounding, follow-up comparison, and temporal change labels.",
+    "source": "pubmed",
+    "source_records": ["pubmed"],
+    "expected_tier": "core",
+    "reason": "direct medical VLM temporal lesion paper"
+  },
+  {
+    "title": "A Radiology Vision-Language Benchmark for Longitudinal Chest X-Ray Reporting",
+    "abstract": "The benchmark uses MIMIC-CXR and CheXpert follow-up studies to evaluate medical multimodal report generation.",
+    "source": "europepmc",
+    "source_records": ["europepmc"],
+    "expected_tier": "core",
+    "reason": "direct radiology VLM benchmark evidence"
+  },
+  {
+    "title": "Generic Vision-Language Foundation Models for Image Captioning",
+    "abstract": "The model improves image-text alignment and visual question answering but does not target clinical imaging.",
+    "source": "arxiv",
+    "source_records": ["arxiv"],
+    "expected_tier": "adjacent",
+    "reason": "generic VLM method that can be background evidence"
+  },
+  {
+    "title": "Planning and Reflection for GUI Agents on WebArena",
+    "abstract": "This work evaluates browser automation, computer use, and failure recovery for GUI agents.",
+    "source": "openreview",
+    "source_records": ["openreview"],
+    "expected_tier": "noise",
+    "reason": "agent benchmark paper unrelated to medical VLM evidence"
+  }
+]

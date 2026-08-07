@@ -96,5 +96,60 @@
     "failure-analysis gap",
     "real-world-transfer gap"
   ],
+  "source_policy": {
+    "preferred_sources": ["arxiv", "openreview", "openalex"],
+    "neutral_sources": ["crossref"],
+    "downrank_sources": ["pubmed", "europepmc"],
+    "disabled_sources": [],
+    "source_weight_overrides": {
+      "arxiv": 0.14,
+      "openreview": 0.14,
+      "openalex": 0.1,
+      "crossref": 0.05,
+      "pubmed": -0.08,
+      "europepmc": -0.08
+    }
+  },
+  "evidence_policy": {
+    "core_keywords": [
+      "GUI agent",
+      "web navigation",
+      "desktop control",
+      "mobile agent",
+      "computer use agent",
+      "browser agent",
+      "OSWorld",
+      "WebArena",
+      "AndroidWorld",
+      "VisualWebArena",
+      "Mind2Web",
+      "WorkArena",
+      "MobileUse",
+      "LongHorizonUI",
+      "GUI-ReWalk"
+    ],
+    "adjacent_keywords": [
+      "workflow automation",
+      "tool agent",
+      "computer use",
+      "browser automation",
+      "LLM agent",
+      "multimodal agent",
+      "task success rate",
+      "long-horizon task",
+      "interactive task"
+    ],
+    "negative_keywords": [
+      "medical",
+      "clinical",
+      "PET/CT",
+      "ophthalmic",
+      "patient",
+      "radiology",
+      "lesion",
+      "diagnosis",
+      "disease"
+    ]
+  },
   "generated_by": "manual_seed"
 }

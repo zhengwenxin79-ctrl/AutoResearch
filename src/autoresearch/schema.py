@@ -21,6 +21,20 @@ class CapabilityDimension(BaseModel):
     required: bool = True
 
 
+class SourcePolicy(BaseModel):
+    preferred_sources: list[str] = Field(default_factory=list)
+    neutral_sources: list[str] = Field(default_factory=list)
+    downrank_sources: list[str] = Field(default_factory=list)
+    disabled_sources: list[str] = Field(default_factory=list)
+    source_weight_overrides: dict[str, float] = Field(default_factory=dict)
+
+
+class EvidencePolicy(BaseModel):
+    core_keywords: list[str] = Field(default_factory=list)
+    adjacent_keywords: list[str] = Field(default_factory=list)
+    negative_keywords: list[str] = Field(default_factory=list)
+
+
 class DomainProfile(BaseModel):
     domain_id: str
     domain_name: str
@@ -35,6 +49,8 @@ class DomainProfile(BaseModel):
     metric_keywords: list[str] = Field(default_factory=list)
     capability_dimensions: list[CapabilityDimension] = Field(default_factory=list)
     gap_lenses: list[str] = Field(default_factory=list)
+    source_policy: SourcePolicy = Field(default_factory=SourcePolicy)
+    evidence_policy: EvidencePolicy = Field(default_factory=EvidencePolicy)
     generated_by: str = "rule_based"
 
 

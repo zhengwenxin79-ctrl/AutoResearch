@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .schema import CapabilityDimension, DomainProfile
+from .schema import CapabilityDimension, DomainProfile, EvidencePolicy, SourcePolicy
 from .utils import slugify, tokens
 
 DEFAULT_GAP_LENSES = [
@@ -14,6 +14,205 @@ DEFAULT_GAP_LENSES = [
     "failure-analysis gap",
     "real-world-transfer gap",
 ]
+
+
+def _medical_source_policy() -> SourcePolicy:
+    return SourcePolicy(
+        preferred_sources=["pubmed", "europepmc", "openalex"],
+        neutral_sources=["arxiv", "crossref", "openreview"],
+        downrank_sources=[],
+        disabled_sources=[],
+        source_weight_overrides={
+            "pubmed": 0.12,
+            "europepmc": 0.11,
+            "openalex": 0.08,
+            "arxiv": 0.06,
+            "crossref": 0.05,
+            "openreview": 0.03,
+        },
+    )
+
+
+def _medical_evidence_policy() -> EvidencePolicy:
+    return EvidencePolicy(
+        core_keywords=[
+            "medical VLM",
+            "medical vision-language",
+            "radiology vision-language",
+            "medical multimodal",
+            "radiology",
+            "medical imaging",
+            "lesion",
+            "temporal change",
+            "longitudinal",
+            "follow-up",
+            "MIMIC-CXR",
+            "CheXpert",
+            "DeepLesion",
+            "CTLesionVQA",
+        ],
+        adjacent_keywords=[
+            "vision-language model",
+            "multimodal large language model",
+            "report generation",
+            "segmentation",
+            "clinical workflow",
+            "foundation model",
+            "visual question answering",
+        ],
+        negative_keywords=[
+            "GUI agent",
+            "web navigation",
+            "desktop control",
+            "browser automation",
+            "computer use",
+            "tool use",
+            "function calling",
+            "seismic",
+            "remote sensing",
+        ],
+    )
+
+
+def _gui_source_policy() -> SourcePolicy:
+    return SourcePolicy(
+        preferred_sources=["arxiv", "openreview", "openalex"],
+        neutral_sources=["crossref"],
+        downrank_sources=["pubmed", "europepmc"],
+        disabled_sources=[],
+        source_weight_overrides={
+            "arxiv": 0.14,
+            "openreview": 0.14,
+            "openalex": 0.1,
+            "crossref": 0.05,
+            "pubmed": -0.08,
+            "europepmc": -0.08,
+        },
+    )
+
+
+def _gui_evidence_policy() -> EvidencePolicy:
+    return EvidencePolicy(
+        core_keywords=[
+            "GUI agent",
+            "web navigation",
+            "desktop control",
+            "mobile agent",
+            "computer use agent",
+            "browser agent",
+            "OSWorld",
+            "WebArena",
+            "AndroidWorld",
+            "VisualWebArena",
+            "Mind2Web",
+            "WorkArena",
+            "MobileUse",
+            "LongHorizonUI",
+            "GUI-ReWalk",
+        ],
+        adjacent_keywords=[
+            "workflow automation",
+            "tool agent",
+            "computer use",
+            "browser automation",
+            "LLM agent",
+            "multimodal agent",
+            "task success rate",
+            "long-horizon task",
+            "interactive task",
+        ],
+        negative_keywords=[
+            "medical",
+            "clinical",
+            "PET/CT",
+            "ophthalmic",
+            "patient",
+            "radiology",
+            "lesion",
+            "diagnosis",
+            "disease",
+        ],
+    )
+
+
+def _llm_agent_source_policy() -> SourcePolicy:
+    return SourcePolicy(
+        preferred_sources=["arxiv", "openreview", "openalex"],
+        neutral_sources=["crossref"],
+        downrank_sources=["pubmed", "europepmc"],
+        disabled_sources=[],
+        source_weight_overrides={
+            "arxiv": 0.12,
+            "openreview": 0.12,
+            "openalex": 0.09,
+            "crossref": 0.05,
+            "pubmed": -0.06,
+            "europepmc": -0.06,
+        },
+    )
+
+
+def _llm_agent_evidence_policy() -> EvidencePolicy:
+    return EvidencePolicy(
+        core_keywords=[
+            "LLM agent",
+            "tool use",
+            "function calling",
+            "multi-turn workflow",
+            "agent benchmark",
+            "ToolBench",
+            "API-Bank",
+            "BFCL",
+            "tau-bench",
+            "VitaBench",
+            "AgentBench",
+            "GAIA",
+        ],
+        adjacent_keywords=[
+            "planning",
+            "reflection",
+            "memory",
+            "verifier",
+            "harness",
+            "workflow evaluation",
+            "task success rate",
+        ],
+        negative_keywords=[
+            "medical imaging",
+            "radiology",
+            "lesion",
+            "PET/CT",
+            "ophthalmic",
+            "seismic",
+            "remote sensing",
+        ],
+    )
+
+
+def _generic_source_policy() -> SourcePolicy:
+    return SourcePolicy(
+        preferred_sources=["openalex", "arxiv"],
+        neutral_sources=["crossref", "openreview", "pubmed", "europepmc"],
+        downrank_sources=[],
+        disabled_sources=[],
+        source_weight_overrides={
+            "openalex": 0.08,
+            "arxiv": 0.08,
+            "openreview": 0.06,
+            "crossref": 0.05,
+            "pubmed": 0.03,
+            "europepmc": 0.03,
+        },
+    )
+
+
+def _generic_evidence_policy(topic: str) -> EvidencePolicy:
+    topic_terms = [term for term in tokens(topic) if len(term) > 2][:8]
+    return EvidencePolicy(
+        core_keywords=topic_terms,
+        adjacent_keywords=["benchmark", "dataset", "evaluation", "survey", "baseline"],
+        negative_keywords=[],
+    )
 
 
 def _dimension(
@@ -137,6 +336,8 @@ def _medical_vlm(topic: str = "") -> DomainProfile:
             ),
         ],
         gap_lenses=DEFAULT_GAP_LENSES,
+        source_policy=_medical_source_policy(),
+        evidence_policy=_medical_evidence_policy(),
     )
 
 
@@ -233,6 +434,8 @@ def _gui_agent(topic: str = "") -> DomainProfile:
             ),
         ],
         gap_lenses=DEFAULT_GAP_LENSES,
+        source_policy=_gui_source_policy(),
+        evidence_policy=_gui_evidence_policy(),
     )
 
 
@@ -321,6 +524,8 @@ def _llm_agent(topic: str = "") -> DomainProfile:
             ),
         ],
         gap_lenses=DEFAULT_GAP_LENSES,
+        source_policy=_llm_agent_source_policy(),
+        evidence_policy=_llm_agent_evidence_policy(),
     )
 
 
@@ -363,6 +568,8 @@ def _generic(topic: str = "") -> DomainProfile:
             ),
         ],
         gap_lenses=DEFAULT_GAP_LENSES,
+        source_policy=_generic_source_policy(),
+        evidence_policy=_generic_evidence_policy(topic),
     )
 
 

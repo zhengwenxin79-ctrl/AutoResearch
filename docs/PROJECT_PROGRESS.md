@@ -274,11 +274,22 @@
   - proposed an intentionally small implementation order: relevance fixtures, profile policy schema,
     standalone evidence-tier scoring, then ranker/pipeline/dashboard integration
   - plan is documented in `docs/PROFILE_AWARE_SOURCE_RANKER_PLAN.md`
+- Implemented the first three Profile-Aware Source / Ranker steps without changing ranking behavior:
+  - added `SourcePolicy` and `EvidencePolicy` to `DomainProfile` with backward-compatible defaults
+  - seeded GUI Agent, Medical VLM, LLM Agent, and generic profiles with source/evidence policies
+  - added relevance fixtures for GUI Agent and Medical VLM core/adjacent/noise judgments
+  - added `score_evidence_tier(paper, profile)` in `src/autoresearch/relevance.py`
+  - added tests for profile policy loading, legacy profile compatibility, and fixture tier judgments
+  - validation passed: `.venv/bin/pytest` -> 28 passed; `.venv/bin/ruff check .` -> all checks passed
 
 ## Next
 
-- Execute only the first three Profile-Aware Source / Ranker steps: relevance fixtures, profile
-  policy schema, and standalone evidence-tier scoring.
+- Review the new evidence-tier judgments, then connect `score_evidence_tier` to `rank_papers`
+  with `profile=None` backward compatibility.
+- After ranker integration, pass the profile into `pipeline.py` ranking and re-run the GUI Agent demo
+  to measure whether medical / clinical drift drops.
+- Add Dashboard and Codex Review packet display for `core`, `adjacent`, `noise`, and `unknown`
+  evidence tiers.
 - Use Codex Manual LLM Review v1 on the GUI Agent demo as the standard review loop.
 - Add Codex-reviewed PaperInsight and MOC refinement with strict evidence references.
 - Add review/evaluation fixtures to compare rule-generated vs Codex-reviewed extraction quality.

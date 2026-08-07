@@ -172,6 +172,9 @@ def profile_command(
     console.print(f"Domain: {profile.domain_name}")
     console.print(f"Capabilities: {len(profile.capability_dimensions)}")
     console.print("Core concepts: " + ", ".join(profile.core_concepts[:8]))
+    console.print("Preferred sources: " + ", ".join(profile.source_policy.preferred_sources))
+    console.print("Downrank sources: " + ", ".join(profile.source_policy.downrank_sources))
+    console.print(f"Core evidence keywords: {len(profile.evidence_policy.core_keywords)}")
 
 
 @app.command()

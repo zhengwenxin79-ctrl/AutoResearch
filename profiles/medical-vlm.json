@@ -114,5 +114,57 @@
     "failure-analysis gap",
     "real-world-transfer gap"
   ],
+  "source_policy": {
+    "preferred_sources": ["pubmed", "europepmc", "openalex"],
+    "neutral_sources": ["arxiv", "crossref", "openreview"],
+    "downrank_sources": [],
+    "disabled_sources": [],
+    "source_weight_overrides": {
+      "pubmed": 0.12,
+      "europepmc": 0.11,
+      "openalex": 0.08,
+      "arxiv": 0.06,
+      "crossref": 0.05,
+      "openreview": 0.03
+    }
+  },
+  "evidence_policy": {
+    "core_keywords": [
+      "medical VLM",
+      "medical vision-language",
+      "radiology vision-language",
+      "medical multimodal",
+      "radiology",
+      "medical imaging",
+      "lesion",
+      "temporal change",
+      "longitudinal",
+      "follow-up",
+      "MIMIC-CXR",
+      "CheXpert",
+      "DeepLesion",
+      "CTLesionVQA"
+    ],
+    "adjacent_keywords": [
+      "vision-language model",
+      "multimodal large language model",
+      "report generation",
+      "segmentation",
+      "clinical workflow",
+      "foundation model",
+      "visual question answering"
+    ],
+    "negative_keywords": [
+      "GUI agent",
+      "web navigation",
+      "desktop control",
+      "browser automation",
+      "computer use",
+      "tool use",
+      "function calling",
+      "seismic",
+      "remote sensing"
+    ]
+  },
   "generated_by": "manual_seed"
 }

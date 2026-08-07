@@ -62,6 +62,19 @@ possible noise
 Search -> Paper Cards -> MOC -> Gap Evidence -> Codex Review -> Dashboard
 ```
 
+## 执行状态
+
+截至 2026-08-07，前三个小步已经完成：
+
+```text
+Step 1: relevance fixtures -> done
+Step 2: profile policy schema -> done
+Step 3: standalone evidence tier scoring -> done
+```
+
+当前还没有把 evidence tier 接入 `rank_papers` / `pipeline.py` / Dashboard。
+这是有意保留的安全边界：先确认判断函数符合直觉，再让它影响排序和界面。
+
 ## 设计原则
 
 1. **先标记，后过滤**
