@@ -204,6 +204,62 @@ HTML_TEMPLATE = """<!doctype html>
       color: var(--muted);
       font-size: 13px;
     }
+    .mainline-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .verdict {
+      border-left: 4px solid var(--teal);
+      background: #fbfcfb;
+    }
+    .logic-chain {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .chain-step {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 128px;
+      box-shadow: var(--shadow);
+    }
+    .step-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: #20332e;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 750;
+      margin-bottom: 8px;
+    }
+    .evidence-columns {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .evidence-column {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+    .paper-list {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      font-size: 13px;
+    }
+    .paper-list li { margin-bottom: 8px; }
     .kv {
       display: grid;
       grid-template-columns: minmax(120px, 190px) minmax(0, 1fr);
@@ -255,7 +311,7 @@ HTML_TEMPLATE = """<!doctype html>
       .topbar { grid-template-columns: 1fr; }
       .actions { justify-content: flex-start; }
       .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .grid-2, .grid-3, .mainline-layout, .logic-chain, .evidence-columns { grid-template-columns: 1fr; }
       .toolbar { align-items: stretch; flex-direction: column; }
       .kv { grid-template-columns: 1fr; }
       .profile-strip, .llm-strip { grid-template-columns: 1fr; }
@@ -277,6 +333,7 @@ HTML_TEMPLATE = """<!doctype html>
         <p class="subtle" id="generatedAt"></p>
       </div>
       <div class="actions">
+        <button class="link-button" data-tab-go="mainline" type="button">研究主线</button>
         <button class="link-button" data-tab-go="overview" type="button">信息源覆盖</button>
         <button class="link-button" data-tab-go="papers" type="button">论文卡片</button>
         <button class="link-button" data-tab-go="gaps" type="button">Gap 证据链</button>
@@ -290,7 +347,8 @@ HTML_TEMPLATE = """<!doctype html>
     <section class="llm-strip" id="llmStrip"></section>
 
     <nav class="tabs" aria-label="看板标签页">
-      <button class="tab-button active" data-tab="overview">总览</button>
+      <button class="tab-button active" data-tab="mainline">主线</button>
+      <button class="tab-button" data-tab="overview">总览</button>
       <button class="tab-button" data-tab="papers">论文</button>
       <button class="tab-button" data-tab="moc">MOC</button>
       <button class="tab-button" data-tab="gaps">Gap</button>
@@ -298,7 +356,8 @@ HTML_TEMPLATE = """<!doctype html>
       <button class="tab-button" data-tab="synthesis">分析</button>
     </nav>
 
-    <section id="overview" class="section active"></section>
+    <section id="mainline" class="section active"></section>
+    <section id="overview" class="section"></section>
     <section id="papers" class="section"></section>
     <section id="moc" class="section"></section>
     <section id="gaps" class="section"></section>
@@ -623,6 +682,204 @@ HTML_TEMPLATE = """<!doctype html>
       const number = Number(value || 0);
       const sign = number > 0 ? "+" : "";
       return `${sign}${number.toFixed(2)}`;
+    };
+
+    const cleanTitle = (value, limit = 96) => {
+      const text = String(value || "");
+      return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+    };
+
+    const papersByTier = (tier, limit = 5) => (data.paper_cards || [])
+      .filter(paper => String(paper.evidence_tier || "unknown") === tier)
+      .slice(0, limit);
+
+    const paperList = (papers, fallback) => {
+      if (!papers.length) return `<p class="subtle">${esc(fallback)}</p>`;
+      return `
+        <ol class="paper-list">
+          ${papers.map(paper => `
+            <li>
+              <strong>${esc(cleanTitle(paper.title, 80))}</strong><br>
+              <span class="subtle">${tierBadge(paper.evidence_tier)} 排序影响 ${esc(formatDelta(paper.evidence_tier_score_delta))}</span>
+            </li>
+          `).join("")}
+        </ol>
+      `;
+    };
+
+    const synthesizedGaps = () => {
+      const reviewed = data.synthesis?.gap_summaries || [];
+      if (reviewed.length) {
+        return reviewed.map(gap => ({
+          gap: gap.gap,
+          confidence: gap.confidence,
+          judgment: gap.judgment,
+          support: gap.support,
+          counter: gap.counter_evidence,
+          source: "synthesis",
+        }));
+      }
+      return (data.gaps || []).map(gap => ({
+        gap: gap.gap,
+        confidence: gap.confidence,
+        judgment: gap.why_it_matters,
+        support: `${gap.support_count || 0}/${gap.total_papers || 0} 篇支持或暴露该弱点`,
+        counter: `${gap.counter_count || 0}/${gap.total_papers || 0} 篇提供反证`,
+        source: "rule",
+      }));
+    };
+
+    const gapStrength = (gap) => {
+      const confidence = Number(gap.confidence || 0);
+      const counterText = String(gap.counter || "");
+      if (counterText.includes("暂无明确反证") || confidence >= 0.6) {
+        return { label: "优先验证", badge: "teal" };
+      }
+      if (confidence >= 0.4) return { label: "候选 Gap", badge: "amber" };
+      return { label: "证据偏弱", badge: "red" };
+    };
+
+    const bestOpportunity = () => {
+      const items = data.research_opportunities || [];
+      return items.find(item => !String(item.gap || "").toLowerCase().includes("autoresearch")) || items[0] || {};
+    };
+
+    const mainClaim = () => {
+      const summary = String(data.synthesis?.executive_summary || "");
+      if (summary) return summary;
+      const gaps = synthesizedGaps();
+      if (gaps[0]) return `当前最值得检查的研究缺口是：${gaps[0].gap}`;
+      return "当前还没有形成稳定主线，需要先补充核心论文和证据分层。";
+    };
+
+    const renderMainline = () => {
+      const source = judgmentSource();
+      const tiers = evidenceTierStats();
+      const gaps = synthesizedGaps();
+      const primaryGap = gaps.find(gap => !String(gap.gap || "").includes("System Gap")) || gaps[0] || {};
+      const opportunity = bestOpportunity();
+      const mocGroups = data.topic_moc?.problem_spaces || [];
+      const firstMoc = mocGroups[0] || {};
+      const corePapers = papersByTier("core", 5);
+      const adjacentPapers = papersByTier("adjacent", 4);
+      const noisePapers = papersByTier("noise", 4);
+      const gapRows = gaps.slice(0, 5).map((gap, idx) => {
+        const strength = gapStrength(gap);
+        return `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${esc(zh(gap.gap))}</td>
+            <td><span class="badge ${strength.badge}">${esc(strength.label)}</span></td>
+            <td>${esc(gap.confidence ?? "n/a")}</td>
+            <td>${esc(gap.support || "未记录")}</td>
+            <td>${esc(gap.counter || "未记录")}</td>
+          </tr>
+        `;
+      }).join("");
+
+      document.getElementById("mainline").innerHTML = `
+        <div class="mainline-layout">
+          <section>
+            <article class="card verdict">
+              <div class="card-header">
+                <div>
+                  <h2>核心结论</h2>
+                  <p class="subtle">先看这个，再看论文卡片和 Gap 细节。</p>
+                </div>
+                <span class="badge ${source.badge}">${esc(source.label)}</span>
+              </div>
+              <p>${esc(mainClaim())}</p>
+              <dl class="kv">
+                <dt>当前领域</dt><dd>${esc(data.domain_profile?.domain_name || data.topic || "未配置")}</dd>
+                <dt>证据分层</dt><dd>核心 ${tiers.core || 0}；相邻 ${tiers.adjacent || 0}；噪声 ${tiers.noise || 0}；未判定 ${tiers.unknown || 0}</dd>
+                <dt>最该检查的 Gap</dt><dd>${esc(zh(primaryGap.gap || "未形成稳定 Gap"))}</dd>
+                <dt>为什么不是最终结论</dt><dd>${esc(data.synthesis?.evidence_quality || "当前判断仍需要全文实验设置、指标定义和反证审查。")}</dd>
+              </dl>
+            </article>
+
+            <h2 style="margin-top:16px;">从论文到 Gap 的链条</h2>
+            <div class="logic-chain">
+              <article class="chain-step">
+                <span class="step-index">1</span>
+                <h3>输入领域</h3>
+                <p class="subtle">${esc(data.topic || "未记录")}</p>
+              </article>
+              <article class="chain-step">
+                <span class="step-index">2</span>
+                <h3>核心证据池</h3>
+                <p class="subtle">先把真正属于目标领域的论文和旁证/噪声分开。</p>
+                <div class="badge-row">${tierBadge("core")}<span class="badge">${tiers.core || 0} 篇</span></div>
+              </article>
+              <article class="chain-step">
+                <span class="step-index">3</span>
+                <h3>MOC 对比</h3>
+                <p class="subtle">${esc(zh(firstMoc.name || "问题空间尚未拆细"))}</p>
+              </article>
+              <article class="chain-step">
+                <span class="step-index">4</span>
+                <h3>Weakness</h3>
+                <p class="subtle">${esc(zh(primaryGap.gap || "暂无"))}</p>
+              </article>
+              <article class="chain-step">
+                <span class="step-index">5</span>
+                <h3>反证处理</h3>
+                <p class="subtle">${esc(primaryGap.counter || "需要检查是否已有论文解决该问题。")}</p>
+              </article>
+              <article class="chain-step">
+                <span class="step-index">6</span>
+                <h3>可做项目</h3>
+                <p class="subtle">${esc(opportunity.research_question || "等待 Gap 收敛后生成研究问题。")}</p>
+              </article>
+            </div>
+
+            <h2 style="margin-top:16px;">Gap 优先级</h2>
+            <table>
+              <thead><tr><th>#</th><th>Gap / Weakness</th><th>状态</th><th>置信度</th><th>支持</th><th>反证</th></tr></thead>
+              <tbody>${gapRows || `<tr><td colspan="6">暂无 Gap。</td></tr>`}</tbody>
+            </table>
+          </section>
+
+          <aside>
+            <article class="card">
+              <h2>推荐切入点</h2>
+              <dl class="kv">
+                <dt>研究问题</dt><dd>${esc(opportunity.research_question || "暂无")}</dd>
+                <dt>方法设想</dt><dd>${esc(opportunity.proposed_method || "暂无")}</dd>
+                <dt>评估方案</dt><dd>${join(opportunity.evaluation_protocol || [])}</dd>
+                <dt>消融/对比</dt><dd>${join([...(opportunity.baselines || []), ...(opportunity.ablations || [])], "暂无")}</dd>
+              </dl>
+            </article>
+            <article class="card" style="margin-top:12px;">
+              <h2>页面阅读顺序</h2>
+              <ol class="evidence-list">
+                <li>先看本页的核心结论和 Gap 优先级。</li>
+                <li>再去“论文”页检查每篇论文的证据层级和原因。</li>
+                <li>去“MOC”页看论文被放进哪个问题空间。</li>
+                <li>最后看“Gap”和“机会”页，追踪证据链和项目设计。</li>
+              </ol>
+            </article>
+          </aside>
+        </div>
+
+        <h2 style="margin-top:16px;">证据分层板</h2>
+        <div class="evidence-columns">
+          <section class="evidence-column">
+            <h3>核心证据</h3>
+            <p class="subtle">主要用于支撑目标领域 Gap。</p>
+            ${paperList(corePapers, "暂无核心证据。")}
+          </section>
+          <section class="evidence-column">
+            <h3>相邻证据</h3>
+            <p class="subtle">可以提供背景，但不能直接当作核心支撑。</p>
+            ${paperList(adjacentPapers, "暂无相邻证据。")}
+          </section>
+          <section class="evidence-column">
+            <h3>噪声/需降权</h3>
+            <p class="subtle">容易污染 Gap 判断，应谨慎使用。</p>
+            ${paperList(noisePapers, "暂无明显噪声论文。")}
+          </section>
+        </div>
+      `;
     };
 
     const translatedLlmError = (error) => {
@@ -1109,6 +1366,7 @@ HTML_TEMPLATE = """<!doctype html>
       renderProfileStrip();
       renderSummary();
       renderLlmStrip();
+      renderMainline();
       renderOverview();
       renderPapers();
       renderMoc();

@@ -310,11 +310,20 @@
     keywords and source-policy decisions
   - regenerated and visually checked the GUI Agent dashboard through a local preview server
   - validation passed: `.venv/bin/pytest` -> 32 passed; `.venv/bin/ruff check .` -> all checks passed
+- Added a clearer Dashboard mainline page after reviewing the desired MOC-style gap workflow and
+  public research-assistant UI patterns:
+  - new default `主线` tab presents `核心结论 -> 论文到 Gap 的链条 -> Gap 优先级 -> 推荐切入点`
+  - evidence is grouped into core / adjacent / noise columns before the user opens detailed paper cards
+  - Gap priority table puts support and counter-evidence next to each candidate weakness
+  - the page separates `Rule-generated` from `Codex-reviewed` so users can see whether a claim has
+    passed manual Codex review
+  - applied the existing Codex Review result to the GUI Agent demo so the visible mainline now
+    emphasizes `failure-conditioned GUI workflow benchmark / evaluation`
+  - validation passed: `.venv/bin/pytest` -> 32 passed; `.venv/bin/ruff check .` -> all checks passed
 
 ## Next
 
 - Add source-quality reporting: source -> core / adjacent / noise contribution counts.
-- Use Codex Manual LLM Review v1 on the GUI Agent demo as the standard review loop.
 - Add Codex-reviewed PaperInsight and MOC refinement with strict evidence references.
 - Add review/evaluation fixtures to compare rule-generated vs Codex-reviewed extraction quality.
 - Add query/source balancing so weak sources do not dominate runtime and source diversity is explicit.

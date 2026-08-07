@@ -79,6 +79,11 @@ def test_write_dashboard_creates_static_html(tmp_path):
     assert path.name == "dashboard.html"
     assert "<html lang=\"zh-CN\">" in html
     assert "AutoResearch 调研看板" in html
+    assert "研究主线" in html
+    assert "核心结论" in html
+    assert "从论文到 Gap 的链条" in html
+    assert "推荐切入点" in html
+    assert "证据分层板" in html
     assert "当前领域 Profile" in html
     assert "论文卡片" in html
     assert "Gap 证据链" in html
