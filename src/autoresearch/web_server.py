@@ -166,25 +166,31 @@ def create_handler(output_root: Path, default_run: str = "") -> type[BaseHTTPReq
     class AutoResearchHandler(BaseHTTPRequestHandler):
         server_version = "AutoResearchHTTP/0.1"
 
+        def do_HEAD(self) -> None:
+            self._handle_request(send_body=False)
+
         def do_GET(self) -> None:
+            self._handle_request(send_body=True)
+
+        def _handle_request(self, send_body: bool) -> None:
             parsed = urlparse(self.path)
             path = unquote(parsed.path)
             if path == "/healthz":
-                self._send_json(self._health())
+                self._send_json(self._health(), send_body=send_body)
                 return
             if path in {"/", "/index.html"}:
                 if selected_default_run and _run_dashboard(root, selected_default_run).is_file():
                     self._redirect(f"/runs/{selected_default_run}/dashboard.html#mainline")
                     return
-                self._send_html(build_index_html(root, selected_default_run))
+                self._send_html(build_index_html(root, selected_default_run), send_body=send_body)
                 return
             if path in {"/runs", "/runs/"}:
-                self._send_html(build_index_html(root, selected_default_run))
+                self._send_html(build_index_html(root, selected_default_run), send_body=send_body)
                 return
             if path.startswith("/runs/"):
-                self._serve_run_file(path)
+                self._serve_run_file(path, send_body=send_body)
                 return
-            self._send_text("Not found", status=404)
+            self._send_text("Not found", status=404, send_body=send_body)
 
         def log_message(self, format: str, *args: object) -> None:
             print(f"{self.address_string()} - {format % args}")
@@ -202,23 +208,23 @@ def create_handler(output_root: Path, default_run: str = "") -> type[BaseHTTPReq
                 "runs": [run["slug"] for run in runs],
             }
 
-        def _serve_run_file(self, path: str) -> None:
+        def _serve_run_file(self, path: str, send_body: bool = True) -> None:
             tail = path.removeprefix("/runs/")
             if not tail:
-                self._send_html(build_index_html(root, selected_default_run))
+                self._send_html(build_index_html(root, selected_default_run), send_body=send_body)
                 return
 
             if "/" not in tail:
                 slug = tail.rstrip("/")
                 if not _valid_run_slug(slug):
-                    self._send_text("Not found", status=404)
+                    self._send_text("Not found", status=404, send_body=send_body)
                     return
                 self._redirect(f"/runs/{slug}/dashboard.html#mainline")
                 return
 
             slug, relative = tail.split("/", 1)
             if not _valid_run_slug(slug):
-                self._send_text("Not found", status=404)
+                self._send_text("Not found", status=404, send_body=send_body)
                 return
             if not relative:
                 self._redirect(f"/runs/{slug}/dashboard.html#mainline")
@@ -227,7 +233,7 @@ def create_handler(output_root: Path, default_run: str = "") -> type[BaseHTTPReq
             base = (root / slug).resolve()
             target = (base / relative).resolve()
             if not _is_safe_child(base, target) or not target.is_file():
-                self._send_text("Not found", status=404)
+                self._send_text("Not found", status=404, send_body=send_body)
                 return
 
             payload = target.read_bytes()
@@ -236,35 +242,44 @@ def create_handler(output_root: Path, default_run: str = "") -> type[BaseHTTPReq
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
-            self.wfile.write(payload)
+            if send_body:
+                self.wfile.write(payload)
 
         def _redirect(self, location: str) -> None:
             self.send_response(303)
             self.send_header("Location", location)
             self.end_headers()
 
-        def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
+        def _send_json(
+            self,
+            payload: dict[str, Any],
+            status: int = 200,
+            send_body: bool = True,
+        ) -> None:
             body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(body)
+            if send_body:
+                self.wfile.write(body)
 
-        def _send_html(self, payload: bytes, status: int = 200) -> None:
+        def _send_html(self, payload: bytes, status: int = 200, send_body: bool = True) -> None:
             self.send_response(status)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
-            self.wfile.write(payload)
+            if send_body:
+                self.wfile.write(payload)
 
-        def _send_text(self, payload: str, status: int = 200) -> None:
+        def _send_text(self, payload: str, status: int = 200, send_body: bool = True) -> None:
             body = payload.encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(body)
+            if send_body:
+                self.wfile.write(body)
 
     return AutoResearchHandler
 

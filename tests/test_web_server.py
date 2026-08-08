@@ -71,6 +71,15 @@ def test_web_server_redirects_and_serves_run_files(tmp_path):
         conn.close()
 
         conn = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        conn.request("HEAD", "/runs/demo-run/dashboard.html")
+        response = conn.getresponse()
+        body = response.read()
+        assert response.status == 200
+        assert response.getheader("Content-Type") == "text/html; charset=utf-8"
+        assert body == b""
+        conn.close()
+
+        conn = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
         conn.request("GET", "/runs/../secret.txt")
         response = conn.getresponse()
         response.read()
