@@ -112,6 +112,7 @@ HTML_TEMPLATE = """<!doctype html>
       box-shadow: var(--shadow);
       margin-bottom: 18px;
     }
+    #profileStrip, #summaryGrid, #llmStrip { display: none; }
     .profile-strip strong,
     .llm-strip strong { display: block; margin-bottom: 3px; }
     .llm-strip.ok { border-left: 4px solid var(--teal); }
@@ -300,6 +301,66 @@ HTML_TEMPLATE = """<!doctype html>
     summary { cursor: pointer; color: var(--blue); font-weight: 650; }
     .evidence-list { margin: 10px 0 0; padding-left: 18px; }
     .evidence-list li { margin-bottom: 10px; }
+    .gap-home-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .gap-focus-card {
+      min-height: 260px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .gap-focus-card summary {
+      color: var(--text);
+      list-style: none;
+    }
+    .gap-focus-card summary::-webkit-details-marker { display: none; }
+    .gap-focus-card summary::after {
+      content: "查看证据链";
+      display: inline-flex;
+      margin-top: 12px;
+      min-height: 30px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 12px;
+      color: var(--blue);
+      background: var(--panel-soft);
+      font-size: 13px;
+    }
+    .gap-focus-card[open] summary::after { content: "收起证据链"; }
+    .gap-detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .gap-detail-box {
+      background: #fbfcfb;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .gap-detail-box h4 { margin: 0 0 8px; font-size: 14px; }
+    .paper-original {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .compact-note {
+      background: #fbfcfb;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
     .empty {
       border: 1px dashed var(--line);
       border-radius: 8px;
@@ -311,7 +372,7 @@ HTML_TEMPLATE = """<!doctype html>
       .topbar { grid-template-columns: 1fr; }
       .actions { justify-content: flex-start; }
       .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .grid-2, .grid-3, .mainline-layout, .logic-chain, .evidence-columns { grid-template-columns: 1fr; }
+      .grid-2, .grid-3, .mainline-layout, .logic-chain, .evidence-columns, .gap-home-grid, .gap-detail-grid { grid-template-columns: 1fr; }
       .toolbar { align-items: stretch; flex-direction: column; }
       .kv { grid-template-columns: 1fr; }
       .profile-strip, .llm-strip { grid-template-columns: 1fr; }
@@ -333,12 +394,10 @@ HTML_TEMPLATE = """<!doctype html>
         <p class="subtle" id="generatedAt"></p>
       </div>
       <div class="actions">
-        <button class="link-button" data-tab-go="mainline" type="button">研究主线</button>
-        <button class="link-button" data-tab-go="overview" type="button">信息源覆盖</button>
-        <button class="link-button" data-tab-go="papers" type="button">论文卡片</button>
-        <button class="link-button" data-tab-go="gaps" type="button">Gap 证据链</button>
-        <button class="link-button" data-tab-go="opportunities" type="button">研究机会</button>
-        <button class="link-button" data-tab-go="synthesis" type="button">综合分析</button>
+        <button class="link-button" data-tab-go="mainline" type="button">Gap 首页</button>
+        <button class="link-button" data-tab-go="papers" type="button">论文依据</button>
+        <button class="link-button" data-tab-go="moc" type="button">MOC</button>
+        <button class="link-button" data-tab-go="gaps" type="button">证据链</button>
       </div>
     </header>
 
@@ -347,13 +406,12 @@ HTML_TEMPLATE = """<!doctype html>
     <section class="llm-strip" id="llmStrip"></section>
 
     <nav class="tabs" aria-label="看板标签页">
-      <button class="tab-button active" data-tab="mainline">主线</button>
-      <button class="tab-button" data-tab="overview">总览</button>
-      <button class="tab-button" data-tab="papers">论文</button>
+      <button class="tab-button active" data-tab="mainline">Gap 首页</button>
+      <button class="tab-button" data-tab="papers">论文依据</button>
       <button class="tab-button" data-tab="moc">MOC</button>
-      <button class="tab-button" data-tab="gaps">Gap</button>
-      <button class="tab-button" data-tab="opportunities">机会</button>
-      <button class="tab-button" data-tab="synthesis">分析</button>
+      <button class="tab-button" data-tab="gaps">证据链</button>
+      <button class="tab-button" data-tab="opportunities">研究方案</button>
+      <button class="tab-button" data-tab="overview">系统信息</button>
     </nav>
 
     <section id="mainline" class="section active"></section>
@@ -536,6 +594,42 @@ HTML_TEMPLATE = """<!doctype html>
       ["contradiction gap", "结论冲突"],
       ["failure-analysis gap", "失败分析不足"],
       ["real-world-transfer gap", "真实场景迁移不足"],
+      ["Refined Gap 1: GUI Agent 缺少 failure-conditioned recovery evaluation，而不是简单缺少 recovery 方法。", "Gap 1：缺少按失败类型评估恢复能力"],
+      ["Refined Gap 2: 现有 GUI Agent benchmark 的分数可比性不足，尤其难解释“为什么失败”。", "Gap 2：评测基准分数可比性不足，难解释失败原因"],
+      ["Refined Gap 3: 环境可复现性是潜在问题，但当前证据不足，不能作为最强主线。", "Gap 3：环境可复现性值得验证，但证据还不够强"],
+      ["System Gap: 当前 AutoResearch 的非医学检索仍有领域漂移，必须先做 profile-aware source/ranker。", "系统 Gap：检索存在领域漂移，需要先做 profile-aware source/ranker"],
+      ["How can we evaluate whether GUI Agents detect, classify, and recover from failures during long-horizon workflows?", "如何评估 GUI Agent 在长时程任务中发现、分类并恢复失败的能力？"],
+      ["Can a diagnostic metric suite make GUI Agent benchmark scores comparable across web, mobile, and desktop workflows?", "能否用一套诊断指标让网页、移动端、桌面端 GUI Agent 分数可比较？"],
+      ["How can AutoResearch prevent adjacent-domain papers from becoming false support for a target-domain gap?", "AutoResearch 如何避免相邻领域论文变成目标 Gap 的假支撑？"],
+      ["Build a failure-conditioned workflow benchmark: define a GUI failure taxonomy, inject controlled failures into long-horizon tasks, require recovery checkpoints, and score each recovery stage separately.", "构建按失败类型组织的工作流 Benchmark：定义 GUI 失败分类，向长时程任务注入可控失败，设置恢复检查点，并分别评估发现、诊断、恢复和最终完成。"],
+      ["Construct a cross-benchmark result table that normalizes tasks, environments, action spaces, failure types, and metrics, then run the same agents across slices.", "构建跨 Benchmark 对齐表：统一任务、环境、动作空间、失败类型和指标，再让同一组 Agent 在不同切片上运行。"],
+      ["Add source policies per Domain Profile, source priors, negative keywords, adjacent-evidence labels, and a relevance audit before Gap Finder runs.", "为每个领域 Profile 增加信息源策略、来源先验、负向关键词、相邻证据标签，并在 Gap Finder 前做相关性审计。"],
+      ["final task success", "最终任务成功率"],
+      ["failure detection accuracy", "失败检测准确率"],
+      ["failure type classification accuracy", "失败类型分类准确率"],
+      ["recovery success rate", "恢复成功率"],
+      ["recovery cost / extra steps", "恢复成本 / 额外步骤数"],
+      ["invalid action rate", "无效动作率"],
+      ["state divergence after recovery", "恢复后的状态偏离度"],
+      ["cross-run variance under reset states", "重置状态下的跨运行方差"],
+      ["task-family normalized success", "按任务族归一化的成功率"],
+      ["step-level action correctness", "步骤级动作正确率"],
+      ["UI element grounding error rate", "UI 元素定位错误率"],
+      ["state tracking error rate", "状态跟踪错误率"],
+      ["planning dead-end rate", "规划进入死路的比例"],
+      ["recovery success after detected failure", "检测到失败后的恢复成功率"],
+      ["standard multimodal GUI agent without explicit recovery", "不显式恢复的多模态 GUI Agent"],
+      ["prompt-only reflection agent", "仅靠 Prompt 反思的 Agent"],
+      ["MobileUse-style hierarchical reflection", "MobileUse 风格分层反思"],
+      ["LongHorizonUI-style rollback/compensation", "LongHorizonUI 风格回滚/补偿"],
+      ["oracle state verifier upper bound", "Oracle 状态验证器上界"],
+      ["without verifier", "移除验证器"],
+      ["without memory", "移除记忆模块"],
+      ["without recovery planner", "移除恢复规划器"],
+      ["without rollback/executor compensation", "移除回滚/执行补偿"],
+      ["short-horizon vs long-horizon tasks", "短任务与长时程任务对比"],
+      ["clean trajectory vs injected-failure trajectory", "干净轨迹与注入失败轨迹对比"],
+      ["GUI agent benchmark real-world workflow", "GUI Agent 真实工作流评测基准与 Gap 分析"],
     ]);
 
     const zh = (value) => {
@@ -564,8 +658,21 @@ HTML_TEMPLATE = """<!doctype html>
       text = text.replace(/([0-9]+)[/]([0-9]+) papers support or expose this weakness/g, "$1/$2 篇论文支持或暴露该弱点");
       text = text.replace(/([0-9]+)[/]([0-9]+) papers provide counter-evidence/g, "$1/$2 篇论文提供反证");
       text = text.replace("evidence is mostly abstract/metadata-level", "证据主要来自摘要/元数据层面");
+      text = text.replaceAll("failure-conditioned recovery evaluation", "按失败类型组织的恢复能力评估");
+      text = text.replaceAll("failure-conditioned evaluation gap", "按失败类型组织的评估缺口");
+      text = text.replaceAll("failure-conditioned", "按失败类型组织的");
+      text = text.replaceAll("long-horizon", "长时程");
+      text = text.replaceAll("recovery 方法", "恢复方法");
+      text = text.replaceAll("recovery", "恢复");
+      text = text.replaceAll("benchmark", "Benchmark");
+      text = text.replaceAll("workflow", "工作流");
+      text = text.replaceAll("artifacts", "分析产物");
+      text = text.replaceAll("更精确的 按失败类型组织的评估缺口", "更精确的“按失败类型组织的评估缺口”");
+      text = text.replaceAll("有没有 恢复方法", "有没有恢复方法");
       return text;
     };
+
+    const topicLabel = () => zh(data.topic || "研究主题");
 
     const join = (values, fallback = "未明确") => {
       if (!Array.isArray(values) || values.length === 0) return fallback;
@@ -689,6 +796,111 @@ HTML_TEMPLATE = """<!doctype html>
       return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
     };
 
+    const paperAlias = (value) => {
+      const title = String(value || "");
+      const lower = title.toLowerCase();
+      if (lower.includes("mobileuse")) return "MobileUse：移动端 GUI Agent，强调长任务与分层反思";
+      if (lower.includes("longhorizonui")) return "LongHorizonUI：长时程 GUI 任务框架与 LongGUIBench";
+      if (lower.includes("gui-rewalk")) return "GUI-ReWalk：用探索与意图推理生成 GUI 轨迹数据";
+      if (lower.includes("visualwebarena")) return "VisualWebArena：视觉网页任务 Benchmark";
+      if (lower.includes("webarena")) return "WebArena：真实网页环境中的 Agent Benchmark";
+      if (lower.includes("osworld")) return "OSWorld：真实桌面环境中的 Agent Benchmark";
+      if (lower.includes("mind2web")) return "Mind2Web：网页操作数据与任务集合";
+      if (lower.includes("androidworld")) return "AndroidWorld：移动端 GUI Agent Benchmark";
+      if (lower.includes("pet/ct")) return "PET/CT Agent：医学影像工作流自动化旁证";
+      if (lower.includes("ophthalmic") || lower.includes("agenteye")) return "眼科诊断 Agent：医疗工作流旁证";
+      if (lower.includes("real-world data needs real-world doctors")) return "临床工作流论文：真实场景复杂性的旁证";
+      if (lower.includes("atomic force microscopy")) return "AFM Agent：实验仪器自动化旁证";
+      if (lower.includes("genome viewer") || lower.startsWith("vx:")) return "VX：桌面基因组浏览器 Agent 旁证";
+      if (lower.includes("gui agent")) return cleanTitle(title, 52);
+      return cleanTitle(zh(title), 52);
+    };
+
+    const originalTitleLine = (value) => {
+      const title = String(value || "");
+      if (!title) return "";
+      return `<span class="paper-original">原始题名：${esc(cleanTitle(title, 130))}</span>`;
+    };
+
+    const splitPaperRefs = (value) => String(value || "")
+      .split(/[；;]\\s*/)
+      .map(item => item.trim())
+      .filter(Boolean)
+      .filter(item => !item.includes("暂无明确反证"));
+
+    const paperRefList = (value, fallback = "暂无记录") => {
+      const refs = splitPaperRefs(value);
+      if (!refs.length) return `<p class="subtle">${esc(fallback)}</p>`;
+      return `
+        <ol class="paper-list">
+          ${refs.map(ref => `
+            <li>
+              <strong>${esc(paperAlias(ref))}</strong>
+              ${originalTitleLine(ref)}
+            </li>
+          `).join("")}
+        </ol>
+      `;
+    };
+
+    const gapTitle = (gap, index) => {
+      const text = String(gap?.gap || "");
+      const translated = zh(text);
+      if (translated !== text) return translated;
+      if (text.toLowerCase().includes("failure-conditioned")) return "Gap 1：缺少按失败类型评估恢复能力";
+      if (text.toLowerCase().includes("benchmark") || text.includes("分数可比")) return "Gap 2：评测基准分数可比性不足，难解释失败原因";
+      if (text.includes("环境") || text.toLowerCase().includes("reproduc")) return "Gap 3：环境可复现性值得验证，但证据还不够强";
+      return `Gap ${index + 1}：${cleanTitle(translated, 54)}`;
+    };
+
+    const researchGaps = () => {
+      const all = synthesizedGaps();
+      const nonSystem = all.filter(gap => !String(gap.gap || "").toLowerCase().includes("system gap"));
+      return (nonSystem.length ? nonSystem : all).slice(0, 3);
+    };
+
+    const opportunityForGap = (gap, index) => {
+      const items = (data.research_opportunities || [])
+        .filter(item => !String(item.gap || "").toLowerCase().includes("autoresearch"));
+      const gapText = String(gap?.gap || "").toLowerCase();
+      if (gapText.includes("failure")) {
+        return items.find(item => String(item.research_question || "").toLowerCase().includes("recover")) || items[index] || {};
+      }
+      if (gapText.includes("benchmark") || gapText.includes("分数")) {
+        return items.find(item => String(item.research_question || "").toLowerCase().includes("diagnostic")) || items[index] || {};
+      }
+      return items[index] || items[0] || {};
+    };
+
+    const mocTakeawaysForGap = (gap, index) => {
+      const takeaways = data.synthesis?.moc_takeaways || [];
+      if (!takeaways.length) return ["MOC 还没有形成稳定中文判断，需要回到问题空间分组继续整理。"];
+      const gapText = String(gap?.gap || "").toLowerCase();
+      if (gapText.includes("failure")) {
+        return takeaways.filter(item => /MobileUse|LongHorizonUI|GUI-ReWalk|recovery|恢复/.test(item)).slice(0, 3);
+      }
+      if (gapText.includes("benchmark") || gapText.includes("分数")) {
+        return takeaways.filter(item => /benchmark|指标|分数|MOC|可比/.test(item)).slice(0, 3);
+      }
+      if (gapText.includes("environment") || gapText.includes("环境")) {
+        return takeaways.filter(item => /真实|环境|workflow|旁证|医疗|科学/.test(item)).slice(0, 3);
+      }
+      return takeaways.slice(index, index + 2);
+    };
+
+    const validationStepsForGap = (gap, index) => {
+      const steps = data.synthesis?.next_steps || [];
+      if (!steps.length) return [];
+      const gapText = String(gap?.gap || "").toLowerCase();
+      if (gapText.includes("failure")) {
+        return steps.filter(item => /MobileUse|LongHorizonUI|GUI-ReWalk|failure|指标|Benchmark|全文/.test(item)).slice(0, 4);
+      }
+      if (gapText.includes("benchmark") || gapText.includes("分数")) {
+        return steps.filter(item => /核心论文|MOC|Benchmark|metric|指标|检索/.test(item)).slice(0, 4);
+      }
+      return steps.slice(Math.min(index, steps.length - 1), Math.min(index + 3, steps.length));
+    };
+
     const papersByTier = (tier, limit = 5) => (data.paper_cards || [])
       .filter(paper => String(paper.evidence_tier || "unknown") === tier)
       .slice(0, limit);
@@ -699,7 +911,8 @@ HTML_TEMPLATE = """<!doctype html>
         <ol class="paper-list">
           ${papers.map(paper => `
             <li>
-              <strong>${esc(cleanTitle(paper.title, 80))}</strong><br>
+              <strong>${esc(paperAlias(paper.title))}</strong>
+              ${originalTitleLine(paper.title)}
               <span class="subtle">${tierBadge(paper.evidence_tier)} 排序影响 ${esc(formatDelta(paper.evidence_tier_score_delta))}</span>
             </li>
           `).join("")}
@@ -746,7 +959,10 @@ HTML_TEMPLATE = """<!doctype html>
 
     const mainClaim = () => {
       const summary = String(data.synthesis?.executive_summary || "");
-      if (summary) return summary;
+      if (summary && summary.includes("failure-conditioned")) {
+        return "本轮最稳的研究机会不是再做一个普通 GUI Agent，而是构建“按失败类型组织的 GUI 工作流评估”。已有论文已经在做长时程任务和恢复方法，但还缺少统一协议来分别评估失败检测、失败分类、恢复动作、恢复成本和最终完成。";
+      }
+      if (summary) return zh(summary);
       const gaps = synthesizedGaps();
       if (gaps[0]) return `当前最值得检查的研究缺口是：${gaps[0].gap}`;
       return "当前还没有形成稳定主线，需要先补充核心论文和证据分层。";
@@ -755,130 +971,106 @@ HTML_TEMPLATE = """<!doctype html>
     const renderMainline = () => {
       const source = judgmentSource();
       const tiers = evidenceTierStats();
-      const gaps = synthesizedGaps();
-      const primaryGap = gaps.find(gap => !String(gap.gap || "").includes("System Gap")) || gaps[0] || {};
+      const gaps = researchGaps();
       const opportunity = bestOpportunity();
-      const mocGroups = data.topic_moc?.problem_spaces || [];
-      const firstMoc = mocGroups[0] || {};
       const corePapers = papersByTier("core", 5);
       const adjacentPapers = papersByTier("adjacent", 4);
       const noisePapers = papersByTier("noise", 4);
-      const gapRows = gaps.slice(0, 5).map((gap, idx) => {
+      const gapCards = gaps.map((gap, idx) => {
         const strength = gapStrength(gap);
+        const linkedOpportunity = opportunityForGap(gap, idx);
+        const mocItems = mocTakeawaysForGap(gap, idx);
+        const validationSteps = validationStepsForGap(gap, idx);
         return `
-          <tr>
-            <td>${idx + 1}</td>
-            <td>${esc(zh(gap.gap))}</td>
-            <td><span class="badge ${strength.badge}">${esc(strength.label)}</span></td>
-            <td>${esc(gap.confidence ?? "n/a")}</td>
-            <td>${esc(gap.support || "未记录")}</td>
-            <td>${esc(gap.counter || "未记录")}</td>
-          </tr>
+          <details class="card gap-focus-card">
+            <summary>
+              <div class="card-header">
+                <div>
+                  <h2>${esc(gapTitle(gap, idx))}</h2>
+                  <p class="subtle">${esc(zh(gap.judgment || "需要继续验证。"))}</p>
+                </div>
+                <span class="badge ${strength.badge}">${esc(strength.label)}</span>
+              </div>
+              <dl class="kv">
+                <dt>置信度</dt><dd>${esc(gap.confidence ?? "n/a")}</dd>
+                <dt>一句话判断</dt><dd>${esc(zh(gap.judgment || "暂无"))}</dd>
+              </dl>
+            </summary>
+            <div class="gap-detail-grid">
+              <section class="gap-detail-box">
+                <h4>支持论文依据</h4>
+                ${paperRefList(gap.support, "暂无明确支持论文。")}
+              </section>
+              <section class="gap-detail-box">
+                <h4>反证 / 边界</h4>
+                ${paperRefList(gap.counter, "暂无明确反证，但仍需要全文检查。")}
+              </section>
+              <section class="gap-detail-box">
+                <h4>MOC 怎么支持这个判断</h4>
+                <ol class="evidence-list">
+                  ${(mocItems.length ? mocItems : ["MOC 还需要进一步拆分问题空间。"]).map(item => `<li>${esc(zh(item))}</li>`).join("")}
+                </ol>
+              </section>
+              <section class="gap-detail-box">
+                <h4>下一步怎么验证</h4>
+                <ol class="evidence-list">
+                  ${(validationSteps.length ? validationSteps : [linkedOpportunity.proposed_method || "补全文实验、指标和失败案例证据。"]).map(item => `<li>${esc(zh(item))}</li>`).join("")}
+                </ol>
+              </section>
+            </div>
+            <div class="compact-note">
+              <strong>可转成的研究问题：</strong>${esc(zh(linkedOpportunity.research_question || "等待 Gap 收敛后生成研究问题。"))}<br>
+              <strong>方法设想：</strong>${esc(zh(linkedOpportunity.proposed_method || "暂无"))}
+            </div>
+          </details>
         `;
       }).join("");
 
       document.getElementById("mainline").innerHTML = `
-        <div class="mainline-layout">
-          <section>
-            <article class="card verdict">
-              <div class="card-header">
-                <div>
-                  <h2>核心结论</h2>
-                  <p class="subtle">先看这个，再看论文卡片和 Gap 细节。</p>
-                </div>
-                <span class="badge ${source.badge}">${esc(source.label)}</span>
-              </div>
-              <p>${esc(mainClaim())}</p>
-              <dl class="kv">
-                <dt>当前领域</dt><dd>${esc(data.domain_profile?.domain_name || data.topic || "未配置")}</dd>
-                <dt>证据分层</dt><dd>核心 ${tiers.core || 0}；相邻 ${tiers.adjacent || 0}；噪声 ${tiers.noise || 0}；未判定 ${tiers.unknown || 0}</dd>
-                <dt>最该检查的 Gap</dt><dd>${esc(zh(primaryGap.gap || "未形成稳定 Gap"))}</dd>
-                <dt>为什么不是最终结论</dt><dd>${esc(data.synthesis?.evidence_quality || "当前判断仍需要全文实验设置、指标定义和反证审查。")}</dd>
-              </dl>
-            </article>
-
-            <h2 style="margin-top:16px;">从论文到 Gap 的链条</h2>
-            <div class="logic-chain">
-              <article class="chain-step">
-                <span class="step-index">1</span>
-                <h3>输入领域</h3>
-                <p class="subtle">${esc(data.topic || "未记录")}</p>
-              </article>
-              <article class="chain-step">
-                <span class="step-index">2</span>
-                <h3>核心证据池</h3>
-                <p class="subtle">先把真正属于目标领域的论文和旁证/噪声分开。</p>
-                <div class="badge-row">${tierBadge("core")}<span class="badge">${tiers.core || 0} 篇</span></div>
-              </article>
-              <article class="chain-step">
-                <span class="step-index">3</span>
-                <h3>MOC 对比</h3>
-                <p class="subtle">${esc(zh(firstMoc.name || "问题空间尚未拆细"))}</p>
-              </article>
-              <article class="chain-step">
-                <span class="step-index">4</span>
-                <h3>Weakness</h3>
-                <p class="subtle">${esc(zh(primaryGap.gap || "暂无"))}</p>
-              </article>
-              <article class="chain-step">
-                <span class="step-index">5</span>
-                <h3>反证处理</h3>
-                <p class="subtle">${esc(primaryGap.counter || "需要检查是否已有论文解决该问题。")}</p>
-              </article>
-              <article class="chain-step">
-                <span class="step-index">6</span>
-                <h3>可做项目</h3>
-                <p class="subtle">${esc(opportunity.research_question || "等待 Gap 收敛后生成研究问题。")}</p>
-              </article>
+        <article class="card verdict">
+          <div class="card-header">
+            <div>
+              <h2>首页先看三类 Gap</h2>
+              <p class="subtle">点击任意 Gap 卡片，可以看到它是怎么从论文、反证和 MOC 中推出来的。</p>
             </div>
+            <span class="badge ${source.badge}">${esc(source.label)}</span>
+          </div>
+          <p>${esc(mainClaim())}</p>
+          <dl class="kv">
+            <dt>当前领域</dt><dd>${esc(data.domain_profile?.domain_name || topicLabel() || "未配置")}</dd>
+            <dt>证据分层</dt><dd>核心 ${tiers.core || 0}；相邻 ${tiers.adjacent || 0}；噪声 ${tiers.noise || 0}</dd>
+            <dt>阅读方式</dt><dd>先看三张 Gap 卡片，再展开看论文依据、正反证据和 MOC。</dd>
+          </dl>
+        </article>
 
-            <h2 style="margin-top:16px;">Gap 优先级</h2>
-            <table>
-              <thead><tr><th>#</th><th>Gap / Weakness</th><th>状态</th><th>置信度</th><th>支持</th><th>反证</th></tr></thead>
-              <tbody>${gapRows || `<tr><td colspan="6">暂无 Gap。</td></tr>`}</tbody>
-            </table>
-          </section>
-
-          <aside>
-            <article class="card">
-              <h2>推荐切入点</h2>
-              <dl class="kv">
-                <dt>研究问题</dt><dd>${esc(opportunity.research_question || "暂无")}</dd>
-                <dt>方法设想</dt><dd>${esc(opportunity.proposed_method || "暂无")}</dd>
-                <dt>评估方案</dt><dd>${join(opportunity.evaluation_protocol || [])}</dd>
-                <dt>消融/对比</dt><dd>${join([...(opportunity.baselines || []), ...(opportunity.ablations || [])], "暂无")}</dd>
-              </dl>
-            </article>
-            <article class="card" style="margin-top:12px;">
-              <h2>页面阅读顺序</h2>
-              <ol class="evidence-list">
-                <li>先看本页的核心结论和 Gap 优先级。</li>
-                <li>再去“论文”页检查每篇论文的证据层级和原因。</li>
-                <li>去“MOC”页看论文被放进哪个问题空间。</li>
-                <li>最后看“Gap”和“机会”页，追踪证据链和项目设计。</li>
-              </ol>
-            </article>
-          </aside>
+        <div class="gap-home-grid">
+          ${gapCards || `<div class="empty">暂无 Gap。</div>`}
         </div>
 
-        <h2 style="margin-top:16px;">证据分层板</h2>
-        <div class="evidence-columns">
-          <section class="evidence-column">
-            <h3>核心证据</h3>
-            <p class="subtle">主要用于支撑目标领域 Gap。</p>
-            ${paperList(corePapers, "暂无核心证据。")}
-          </section>
-          <section class="evidence-column">
-            <h3>相邻证据</h3>
-            <p class="subtle">可以提供背景，但不能直接当作核心支撑。</p>
-            ${paperList(adjacentPapers, "暂无相邻证据。")}
-          </section>
-          <section class="evidence-column">
-            <h3>噪声/需降权</h3>
-            <p class="subtle">容易污染 Gap 判断，应谨慎使用。</p>
-            ${paperList(noisePapers, "暂无明显噪声论文。")}
-          </section>
-        </div>
+        <details class="card fold-card" style="margin-top:16px;">
+          <summary class="fold-summary">
+            <div>
+              <h2>证据池概览</h2>
+              <p class="subtle">这里不展开英文摘要，只显示论文在证据链里的角色。</p>
+            </div>
+          </summary>
+          <div class="fold-content">
+            <div class="evidence-columns">
+              <section class="evidence-column">
+                <h3>核心证据</h3>
+                ${paperList(corePapers, "暂无核心证据。")}
+              </section>
+              <section class="evidence-column">
+                <h3>相邻证据</h3>
+                ${paperList(adjacentPapers, "暂无相邻证据。")}
+              </section>
+              <section class="evidence-column">
+                <h3>噪声/需降权</h3>
+                ${paperList(noisePapers, "暂无明显噪声论文。")}
+              </section>
+            </div>
+          </div>
+        </details>
       `;
     };
 
@@ -930,7 +1122,7 @@ HTML_TEMPLATE = """<!doctype html>
       const mocCount = data.topic_moc?.problem_spaces?.length || 0;
       const source = judgmentSource();
       const tiers = evidenceTierStats();
-      document.getElementById("topic").textContent = data.topic || "研究主题";
+      document.getElementById("topic").textContent = topicLabel() || "研究主题";
       document.getElementById("generatedAt").textContent = `生成时间：${data.generated_at || "未知"}`;
       document.getElementById("summaryGrid").innerHTML = [
         metric("就绪状态", statusLabel(readiness.status), `${readiness.ranked_papers || 0} 篇入选论文`),
@@ -1096,7 +1288,8 @@ HTML_TEMPLATE = """<!doctype html>
           <details class="card fold-card">
             <summary class="fold-summary">
               <div>
-                <h3>${idx + 1}. ${esc(paper.title)}</h3>
+                <h3>${idx + 1}. ${esc(paperAlias(paper.title))}</h3>
+                ${originalTitleLine(paper.title)}
                 <p class="subtle">${esc(zh(paper.problem || paper.task || "未明确"))}</p>
                 <div class="badge-row">
                   ${tierBadge(paper.evidence_tier)}
@@ -1124,9 +1317,14 @@ HTML_TEMPLATE = """<!doctype html>
               <dt>指标</dt><dd>${esc(zh(paper.metrics))}</dd>
             </dl>
             <details>
-              <summary>证据片段</summary>
+              <summary>原文证据片段（默认收起）</summary>
               <ol class="evidence-list">
-                ${(paper.evidence_snippets || []).map(snippet => `<li><strong>${esc(snippet.claim)}</strong><br>${esc(snippet.snippet)}</li>`).join("") || "<li>暂无证据片段。</li>"}
+                ${(paper.evidence_snippets || []).map(snippet => `
+                  <li>
+                    <strong>${esc(zh(snippet.claim))}</strong><br>
+                    <span class="subtle">${esc(cleanTitle(snippet.snippet, 220))}</span>
+                  </li>
+                `).join("") || "<li>暂无证据片段。</li>"}
               </ol>
             </details>
             </div>
@@ -1188,49 +1386,53 @@ HTML_TEMPLATE = """<!doctype html>
     };
 
     const renderGaps = () => {
-      const gaps = data.gaps || [];
+      const gaps = synthesizedGaps();
       document.getElementById("gaps").innerHTML = `
         <div class="toolbar">
           <div>
             <h2>Gap 证据链</h2>
-            <p class="subtle">把支持证据、反证和验证计划放在一起看。</p>
+            <p class="subtle">中文优先展示：每个 Gap 都对应支持论文、反证/边界和 MOC 判断。</p>
           </div>
         </div>
         ${gaps.map((gap, idx) => `
           <details class="card fold-card" ${idx === 0 ? "open" : ""}>
             <summary class="fold-summary">
               <div>
-                <h3>Gap ${idx + 1}: ${esc(zh(gap.gap))}</h3>
-                <p class="subtle">支持 ${gap.support_count}/${gap.total_papers}；反证 ${gap.counter_count}/${gap.total_papers}；置信度 ${esc(gap.confidence)}</p>
+                <h3>${esc(gapTitle(gap, idx))}</h3>
+                <p class="subtle">${esc(zh(gap.judgment || "暂无判断"))}；置信度 ${esc(gap.confidence ?? "n/a")}</p>
               </div>
             </summary>
             <div class="fold-content">
             <div class="card-header">
               <div>
-                <h3>Gap ${idx + 1}: ${esc(zh(gap.gap))}</h3>
-                <p class="subtle">${esc(zh(gap.why_it_matters))}</p>
+                <h3>${esc(gapTitle(gap, idx))}</h3>
+                <p class="subtle">${esc(zh(gap.judgment || "需要继续验证。"))}</p>
               </div>
-              <span class="badge ${badgeClass(gap.confidence >= 0.6 ? "ready" : "warn")}">置信度 ${esc(gap.confidence)}</span>
+              <span class="badge ${badgeClass(gap.confidence >= 0.6 ? "ready" : "warn")}">置信度 ${esc(gap.confidence ?? "n/a")}</span>
             </div>
             <div class="confidence"><span style="width:${Math.round((gap.confidence || 0) * 100)}%"></span></div>
-            <dl class="kv">
-              <dt>证据覆盖</dt><dd>支持 ${gap.support_count}/${gap.total_papers}; 反证 ${gap.counter_count}/${gap.total_papers}; 不明确 ${gap.unclear_count}</dd>
-              <dt>研究机会</dt><dd>${esc(zh(gap.research_opportunity))}</dd>
-              <dt>评分依据</dt><dd>${join(gap.score_reasons)}</dd>
-            </dl>
-            <details open>
-              <summary>证据链</summary>
-              <ol class="evidence-list">
-                ${(gap.evidence_chain || []).map(step => `
-                  <li>
-                    <strong>${esc(step.paper_title)}</strong>
-                    <span class="badge ${badgeClass(step.role === "counter" ? "no" : "yes")}">${esc(roleLabel(step.role))}</span>
-                    <br>${esc(zh(step.claim))}
-                    ${step.missing_dimensions?.length ? `<br><span class="subtle">缺失维度：${join(step.missing_dimensions)}</span>` : ""}
-                  </li>
-                `).join("") || "<li>暂无证据链。</li>"}
-              </ol>
-            </details>
+            <div class="gap-detail-grid">
+              <section class="gap-detail-box">
+                <h4>支持论文</h4>
+                ${paperRefList(gap.support, "暂无明确支持论文。")}
+              </section>
+              <section class="gap-detail-box">
+                <h4>反证 / 边界</h4>
+                ${paperRefList(gap.counter, "暂无明确反证，但仍需要全文检查。")}
+              </section>
+              <section class="gap-detail-box">
+                <h4>MOC 判断</h4>
+                <ol class="evidence-list">
+                  ${mocTakeawaysForGap(gap, idx).map(item => `<li>${esc(zh(item))}</li>`).join("")}
+                </ol>
+              </section>
+              <section class="gap-detail-box">
+                <h4>验证计划</h4>
+                <ol class="evidence-list">
+                  ${validationStepsForGap(gap, idx).map(item => `<li>${esc(zh(item))}</li>`).join("") || "<li>继续补全文实验设置、指标定义和失败案例。</li>"}
+                </ol>
+              </section>
+            </div>
             </div>
           </details>
         `).join("") || `<div class="empty">本次未生成 Gap。</div>`}

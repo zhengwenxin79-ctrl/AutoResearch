@@ -79,15 +79,17 @@ def test_write_dashboard_creates_static_html(tmp_path):
     assert path.name == "dashboard.html"
     assert "<html lang=\"zh-CN\">" in html
     assert "AutoResearch 调研看板" in html
-    assert "研究主线" in html
-    assert "核心结论" in html
-    assert "从论文到 Gap 的链条" in html
-    assert "推荐切入点" in html
-    assert "证据分层板" in html
+    assert "Gap 首页" in html
+    assert "首页先看三类 Gap" in html
+    assert "查看证据链" in html
+    assert "支持论文依据" in html
+    assert "反证 / 边界" in html
+    assert "MOC 怎么支持这个判断" in html
+    assert "下一步怎么验证" in html
+    assert "证据池概览" in html
     assert "当前领域 Profile" in html
-    assert "论文卡片" in html
+    assert "论文依据" in html
     assert "Gap 证据链" in html
-    assert "综合分析" in html
     assert "判断来源" in html
     assert "证据层级分布" in html
     assert "核心证据" in html
@@ -101,6 +103,8 @@ def test_write_dashboard_creates_static_html(tmp_path):
     assert "LLM 抽取概况" in html
     assert "data-tab-go=\"gaps\"" in html
     assert "fold-summary" in html
+    assert "原始题名" in html
+    assert "原文证据片段（默认收起）" in html
     assert "错误/提示" in html
     assert "对比基线" in html
     assert "打开 Markdown" not in html
