@@ -28,6 +28,7 @@ dev = [
 
 [project.scripts]
 autoresearch = "autoresearch.cli:app"
+autoresearch-server = "autoresearch.web_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

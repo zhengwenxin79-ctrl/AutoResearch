@@ -320,6 +320,13 @@
   - applied the existing Codex Review result to the GUI Agent demo so the visible mainline now
     emphasizes `failure-conditioned GUI workflow benchmark / evaluation`
   - validation passed: `.venv/bin/pytest` -> 32 passed; `.venv/bin/ruff check .` -> all checks passed
+- Added the first deployment surface for public demos:
+  - added a read-only `autoresearch-server` / `autoresearch_server.py` web entrypoint
+  - the server lists generated runs and can default to the GUI Agent dashboard mainline
+  - added `deploy.sh` modeled after the previous Bench Analysis Workbench deployment pattern
+  - added Nginx template for `autoresearch.sugarclaw.top -> 127.0.0.1:8766`
+  - documented ECS deployment, output sync, and the current boundary that online job submission is
+    not part of this step
 
 ## Next
 

@@ -45,6 +45,15 @@ To regenerate the Chinese synthesis and UI from an existing run:
 autoresearch synthesize outputs/gui-agent-benchmark-real-world-workflow
 ```
 
+To serve generated dashboards through a small read-only web server:
+
+```bash
+AUTORESEARCH_PORT=8766 autoresearch-server
+```
+
+Open `http://127.0.0.1:8766/`. Deployment notes for ECS / Nginx are in
+`docs/DEPLOY.md`.
+
 To let Codex act as the manual LLM reviewer for MOC, Gap, and opportunities:
 
 ```bash
