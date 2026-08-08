@@ -327,6 +327,7 @@
   - added Nginx template for `autoresearch.sugarclaw.top -> 127.0.0.1:8766`
   - documented ECS deployment, output sync, and the current boundary that online job submission is
     not part of this step
+  - adjusted deployment to create the virtual environment with Python 3.11 on Ubuntu 22.04 ECS
 
 ## Next
 

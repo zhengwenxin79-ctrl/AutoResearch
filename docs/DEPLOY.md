@@ -21,7 +21,7 @@ outputs/<run-slug>/dashboard.html
 ## 本地启动
 
 ```bash
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 
@@ -50,6 +50,7 @@ http://127.0.0.1:8766/
 - `AUTORESEARCH_DEFAULT_RUN`：默认展示的 run。默认 `gui-agent-benchmark-real-world-workflow`。
 - `APP_DIR`：服务器项目目录。部署脚本默认 `/opt/AutoResearch`。
 - `BRANCH`：部署分支。默认 `main`。
+- `PYTHON_BIN`：创建虚拟环境用的 Python。默认 `python3.11`。
 
 ## 服务器部署
 

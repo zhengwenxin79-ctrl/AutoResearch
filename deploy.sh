@@ -3,6 +3,7 @@ set -euo pipefail
 
 APP_DIR=${APP_DIR:-/opt/AutoResearch}
 BRANCH=${BRANCH:-main}
+PYTHON_BIN=${PYTHON_BIN:-python3.11}
 HOST=${HOST:-127.0.0.1}
 AUTORESEARCH_PORT=${AUTORESEARCH_PORT:-8766}
 AUTORESEARCH_OUTPUT_DIR=${AUTORESEARCH_OUTPUT_DIR:-outputs}
@@ -19,7 +20,7 @@ if [ "$LOCAL" != "$REMOTE" ]; then
 fi
 
 if [ ! -x ".venv/bin/python" ]; then
-  python3 -m venv .venv
+  "$PYTHON_BIN" -m venv .venv
 fi
 
 .venv/bin/python -m pip install -e . >/tmp/autoresearch_pip_install.log
